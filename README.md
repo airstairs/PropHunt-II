@@ -1,6 +1,5 @@
-# PropHuntII-ZELDAsp
-PropHunt Zelda 2sp (smart pistol) for Android   
-
+# PropHunt=II
+PropHunt II 
 
 <img src="icon.png" style="width: 70px;">  
 
