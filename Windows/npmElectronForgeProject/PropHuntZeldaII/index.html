@@ -1,0 +1,3461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>PropHunt II</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #5c93c4;
+            transition: background-color 0.5s ease;
+        }
+
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 780px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: white;
+            text-align: center;
+            z-index: 10;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        #health-container {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-wrap: wrap;
+            max-width: 280px;
+            justify-content: center;
+        }
+
+        .zelda-heart {
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
+        }
+
+        #knockdown-container { color: #e74c3c; }
+        #depth-container { color: #3498db; }
+        #best-depth-container { color: #9b59b6; }
+        #glider-status-container { color: #f1c40f; }
+
+        /* Bottom-left loadout cluster: Stashed Knives + Smart Pistol badge & ammo */
+        #weapon-loadout-cluster {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            z-index: 25;
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        #smart-pistol-controls {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #smart-pistol-badge {
+            background: rgba(0, 255, 204, 0.22);
+            border: 1.5px solid #00ffcc;
+            color: #00ffcc;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.7px;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.45);
+            transition: transform 0.12s ease, opacity 0.2s ease, background 0.2s ease;
+            text-align: center;
+        }
+
+        #smart-pistol-badge.active-equipped {
+            background: rgba(0, 255, 204, 0.42);
+            box-shadow: 0 0 14px rgba(0, 255, 204, 0.9);
+        }
+
+        #smart-ammo-hud {
+            background: rgba(0, 0, 0, 0.72);
+            border: 1px solid #00ffcc;
+            border-radius: 10px;
+            padding: 6px 10px;
+            color: #00ffcc;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.8px;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+            min-width: 112px;
+            text-align: center;
+        }
+
+        #smart-ammo-bar-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        #smart-ammo-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #00ffcc;
+            transition: width 0.08s linear;
+        }
+
+        #knife-inventory-hud {
+            background: rgba(0, 0, 0, 0.65);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: none;
+        }
+
+        #knife-inventory-label {
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #00ffcc;
+            text-transform: uppercase;
+        }
+
+        #knife-icons-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 30px;
+        }
+
+        .mini-knife-slot {
+            width: 14px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.22;
+            transform: scale(0.9);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .mini-knife-slot.filled {
+            opacity: 1;
+            transform: scale(1);
+            filter: drop-shadow(0 0 5px rgba(0, 255, 204, 0.65));
+        }
+
+        /* Smart pistol lock-on reticles */
+        #lockon-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 7;
+            overflow: hidden;
+        }
+
+        .smart-lock-reticle {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            border: 2px solid #00ffcc;
+            border-radius: 6px;
+            transform: translate(-50%, -50%) rotate(45deg);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .smart-lock-reticle::after {
+            content: "LOCK";
+            transform: rotate(-45deg);
+            font-size: 9px;
+            font-weight: bold;
+            color: #00ffcc;
+            letter-spacing: 0.5px;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #stamina-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 6;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #stamina-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #damage-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(231, 76, 60, 0);
+            pointer-events: none;
+            z-index: 15;
+            transition: background 0.15s ease;
+        }
+
+        #heal-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(46, 204, 113, 0);
+            pointer-events: none;
+            z-index: 15;
+            transition: background 0.2s ease;
+        }
+
+        #wasted-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 30;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #pitch-black-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000000;
+            pointer-events: auto;
+            z-index: 40;
+            display: none;
+        }
+
+        .try-again-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 50;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .menu-options-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .toggle-btn {
+            padding: 10px 18px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+            pointer-events: auto;
+        }
+
+        .toggle-btn.active {
+            background: rgba(46, 204, 113, 0.8);
+            border-color: #2ecc71;
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.8);
+        }
+
+        #terrain-btn.active, #try-terrain-btn.active, #black-terrain-btn.active {
+            background: rgba(155, 89, 182, 0.8);
+            border-color: #9b59b6;
+            box-shadow: 0 0 15px rgba(155, 89, 182, 0.8);
+        }
+
+        .try-again-btn {
+            padding: 14px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: #2ecc71;
+            border: 2px solid #27ae60;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.6);
+            transition: transform 0.2s, background 0.2s;
+            pointer-events: auto;
+        }
+
+        @keyframes redBlueFlash {
+            0% { background: rgba(255, 0, 0, 0.7); }
+            50% { background: rgba(0, 0, 255, 0.7); }
+            100% { background: rgba(255, 0, 0, 0.7); }
+        }
+
+        #wasted-text {
+            font-family: 'Impact', sans-serif;
+            font-size: 80px;
+            color: #b30000;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px black, 0 0 20px black;
+        }
+
+        @keyframes pulseEffect {
+            0% { opacity: 0.3; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.3; transform: scale(0.95); }
+        }
+
+        #instructions {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            color: white;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 60;
+        }
+
+        #menu-title {
+            font-family: 'Impact', sans-serif;
+            font-size: 65px;
+            color: #f1c40f;
+            letter-spacing: 4px;
+            text-shadow: 0 0 15px black, 0 0 30px rgba(241, 196, 15, 0.6);
+            animation: pulseEffect 1.8s ease-in-out infinite;
+            margin-bottom: 10px;
+        }
+
+        .controls-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 15px 25px;
+            margin: 12px 0;
+            max-width: 560px;
+            width: 100%;
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ddd;
+        }
+
+        .controls-card h3 {
+            margin: 0 0 4px 0;
+            color: #2ecc71;
+            font-size: 15px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls-card h5 {
+            margin: 0 0 10px 0;
+            color: #aaa;
+            font-size: 11px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 20px;
+        }
+
+        #start-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #2ecc71;
+            color: white;
+            border: 2px solid #27ae60;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+            transition: transform 0.2s, background 0.2s;
+            margin-top: 10px;
+        }
+
+        #warning-toast {
+            position: absolute;
+            top: 75px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(231, 76, 60, 0.9);
+            border: 2px solid #c0392b;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+            z-index: 20;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>PropHunt II</div>
+        <div id="health-container" aria-label="Hearts"></div>
+        <div id="knockdown-container">ENEMIES: <span id="knockdown-val">0</span></div>
+        <div id="depth-container">STAGE: <span id="depth-val">0</span></div>
+        <div id="best-depth-container">BEST: <span id="best-depth-val">0</span></div>
+        <div id="glider-status-container">GLIDER: <span id="glider-val">NONE</span></div>
+    </div>
+
+    <div id="warning-toast">CLEAR ALL ENEMIES BEFORE EXITING AREA!</div>
+
+    <div id="weapon-loadout-cluster">
+        <div id="knife-inventory-hud">
+            <div id="knife-inventory-label">STASHED KNIVES: <span id="knife-count-val">0</span>/3</div>
+            <div id="knife-icons-row">
+                <div class="mini-knife-slot" data-slot="0"></div>
+                <div class="mini-knife-slot" data-slot="1"></div>
+                <div class="mini-knife-slot" data-slot="2"></div>
+            </div>
+        </div>
+
+        <div id="smart-pistol-controls">
+            <div id="smart-pistol-badge">⚡ SMART PISTOL: SWAP</div>
+            <div id="smart-ammo-hud">
+                <div>SMART AMMO: <span id="smart-ammo-val">5</span>/5</div>
+                <div id="smart-ammo-bar-track">
+                    <div id="smart-ammo-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="lockon-layer"></div>
+    <div id="crosshair"></div>
+    <div id="stamina-container">
+        <canvas id="stamina-canvas" width="100" height="100"></canvas>
+    </div>
+
+    <div id="damage-flash"></div>
+    <div id="heal-flash"></div>
+
+    <div id="wasted-screen">
+        <div id="wasted-text">WASTED</div>
+    </div>
+
+    <div id="pitch-black-screen"></div>
+
+    <!-- Try Again Menus -->
+    <div id="try-again-wasted-container" class="try-again-container">
+        <div class="menu-options-row">
+            <button id="try-night-mode-btn" class="toggle-btn">NIGHT MODE</button>
+            <button id="try-terrain-btn" class="toggle-btn">FLAT GROUND</button>
+        </div>
+        <button id="try-again-wasted" class="try-again-btn">TRY AGAIN</button>
+    </div>
+
+    <div id="try-again-black-container" class="try-again-container" style="z-index: 45;">
+        <div class="menu-options-row">
+            <button id="black-night-mode-btn" class="toggle-btn">NIGHT MODE</button>
+            <button id="black-terrain-btn" class="toggle-btn">FLAT GROUND</button>
+        </div>
+        <button id="try-again-black" class="try-again-btn">TRY AGAIN</button>
+    </div>
+
+    <div id="instructions">
+        <div id="menu-title">PropHunt II: ZELDA</div>
+
+        <div class="controls-card">
+            <h3>Game Controls</h3>
+            <h5>keyboard and mouse or nintendo switch controller</h5>
+            <div class="controls-grid">
+                <div><strong>Walk:</strong> WASD or Left Stick</div>
+                <div><strong>Look:</strong> Mouse Drag or Right Stick</div>
+                <div><strong>Pick Up / Throw / Melee / Fire:</strong> Left Click or B / R</div>
+                <div><strong>Jump:</strong> Spacebar or Y</div>
+                <div><strong>Glide / Freefall (Air):</strong> C or X / A</div>
+                <div><strong>Stash Knife (Ground):</strong> C or X / A</div>
+                <div><strong>Sprint:</strong> Shift or L</div>
+                <div><strong>Swap Weapon (Knife / Pistol):</strong> V or ZR</div>
+            </div>
+        </div>
+
+        <p style="max-width: 500px; line-height: 1.5; margin-bottom: 12px; color: #ddd; font-size: 13px;">
+            you CANNOT glide while enemies remain present on a stage.
+        </p>
+        <div class="menu-options-row" style="margin-bottom: 12px;">
+            <button id="menu-night-mode-btn" class="toggle-btn">NIGHT MODE</button>
+            <button id="menu-terrain-btn" class="toggle-btn">FLAT GROUND</button>
+        </div>
+        <button id="start-btn">PLAY</button>
+    </div>
+
+    <script src="three.min.js"></script>
+
+    <script>
+        let scene, camera, renderer;
+        let currentGroundMesh, currentGrid;
+        let nextGroundMesh, nextGrid;
+        let knife;
+        let smartPistolMesh;
+        let thrownKnives = [];
+        let targets = [];
+        let spinningGoodGuys = [];
+        let enemyKnives = [];
+        let droppedEnemyKnives = [];
+        let smartTracers = [];
+        let obstacles = [];
+        let nextObstacles = [];
+
+        // Glider mounted Smart Pistol reload animation state
+        let gliderAmmoReloadTimer = 0;
+        const GLIDER_AMMO_RELOAD_DURATION = 0.75;
+
+        // Web Audio API Synthesizer (100% offline procedural SFX)
+        let audioCtx = null;
+        let noiseBuffer = null;
+
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return null;
+                audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+            if (!noiseBuffer && audioCtx) {
+                const length = audioCtx.sampleRate * 1.0;
+                noiseBuffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < length; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+            }
+            return audioCtx;
+        }
+
+        function playSmartGunFireSound() {
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(640, now);
+            osc.frequency.exponentialRampToValueAtTime(115, now + 0.11);
+
+            gain.gain.setValueAtTime(0.22, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.12);
+
+            if (noiseBuffer) {
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2200, now);
+                filter.Q.value = 1.4;
+
+                const nGain = ctx.createGain();
+                nGain.gain.setValueAtTime(0.18, now);
+                nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                noise.connect(filter);
+                filter.connect(nGain);
+                nGain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + 0.08);
+            }
+        }
+
+        function playTargetHitSound() {
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(980, now + 0.09);
+
+            gain.gain.setValueAtTime(0.24, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.11);
+
+            const thump = ctx.createOscillator();
+            const tGain = ctx.createGain();
+            thump.type = 'sine';
+            thump.frequency.setValueAtTime(160, now);
+            thump.frequency.exponentialRampToValueAtTime(48, now + 0.13);
+
+            tGain.gain.setValueAtTime(0.26, now);
+            tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+            thump.connect(tGain);
+            tGain.connect(ctx.destination);
+            thump.start(now);
+            thump.stop(now + 0.14);
+        }
+
+        function playKnifeWhooshSound(isIncoming) {
+            const ctx = ensureAudioContext();
+            if (!ctx || !noiseBuffer) return;
+            const now = ctx.currentTime;
+            const duration = isIncoming ? 0.22 : 0.16;
+
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuffer;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.Q.value = isIncoming ? 2.6 : 2.1;
+
+            if (isIncoming) {
+                filter.frequency.setValueAtTime(340, now);
+                filter.frequency.exponentialRampToValueAtTime(1450, now + duration * 0.55);
+                filter.frequency.exponentialRampToValueAtTime(280, now + duration);
+            } else {
+                filter.frequency.setValueAtTime(550, now);
+                filter.frequency.exponentialRampToValueAtTime(1950, now + duration * 0.45);
+                filter.frequency.exponentialRampToValueAtTime(420, now + duration);
+            }
+
+            const gain = ctx.createGain();
+            const peak = isIncoming ? 0.25 : 0.2;
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(peak, now + duration * 0.45);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            src.start(now);
+            src.stop(now + duration);
+        }
+
+        function playGliderAmmoReloadSound() {
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(360, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+
+        // Stage & Persistent Storage Metrics
+        let currentPlatformIndex = 0;
+        let highestStageCleared = parseInt(localStorage.getItem('prophunt_max_stage_cleared') || '0', 10);
+
+        let totalEnemiesSpawnedThisStage = 0;
+        let targetTotalEnemiesForThisStage = 5;
+
+        // Recursive Terrain Generation Tracking
+        let currentPlatformOffset = new THREE.Vector3(0, 0, 0);
+        let nextPlatformOffset = new THREE.Vector3(0, -35, 220);
+        const PLATFORM_OFFSET_STEP = new THREE.Vector3(0, -35, 220);
+        const GLIDER_RELATIVE_POS = new THREE.Vector3(0, 0, 92);
+
+        // Center-stage lit ring & health crate tracking
+        let currentCenterZoneMesh = null;
+        let nextCenterZoneMesh = null;
+        let currentHealthCrateMesh = null;
+        let nextHealthCrateMesh = null;
+        let currentHealthCratePos = new THREE.Vector3();
+        let nextHealthCratePos = new THREE.Vector3();
+        let currentHealthCrateActive = true;
+        let nextHealthCrateActive = true;
+
+        let activeGliderMesh;
+        let gliderPickupMesh = null;
+        let nextGliderPickupMesh = null;
+        let currentGliderPickupPos = new THREE.Vector3();
+        let nextGliderPickupPos = new THREE.Vector3();
+
+        // Clearance Beacon Mesh
+        let clearanceBeaconMesh = null;
+
+        let hasGlider = false;
+        let isGliding = false;
+        let isFreeFalling = false;
+        let glideForwardVelocity = new THREE.Vector3();
+
+        const gliderStatusEl = document.getElementById('glider-val');
+        const depthValEl = document.getElementById('depth-val');
+        const bestDepthValEl = document.getElementById('best-depth-val');
+        const smartPistolControlsEl = document.getElementById('smart-pistol-controls');
+        const smartPistolBadgeEl = document.getElementById('smart-pistol-badge');
+        const smartAmmoValEl = document.getElementById('smart-ammo-val');
+        const smartAmmoBarFillEl = document.getElementById('smart-ammo-bar-fill');
+        const lockonLayerEl = document.getElementById('lockon-layer');
+        const warningToastEl = document.getElementById('warning-toast');
+        let warningToastTimer = null;
+
+        // Lighting & Environment
+        let ambientLight, sunLight;
+        let flashlight;
+        let nightSkyGroup;
+        let starPointsMesh = null;
+        let starDataAttributes = [];
+        let shootingStarLine = null;
+        let shootingStarData = null;
+        let isNightMode = false;
+        let isHillsMode = false;
+        let isDead = false;
+        let isGameStarted = false;
+
+        // Zelda Heart Health (1 unit = 0.5 heart; starts at 3 hearts = 6; caps at 11 hearts = 22)
+        const START_HALF_HEARTS = 6;
+        const MAX_HALF_HEARTS_CAP = 22;
+        let maxHalfHearts = START_HALF_HEARTS;
+        let halfHearts = START_HALF_HEARTS;
+        const healthContainerEl = document.getElementById('health-container');
+        const knockdownValEl = document.getElementById('knockdown-val');
+        const damageFlashEl = document.getElementById('damage-flash');
+        const healFlashEl = document.getElementById('heal-flash');
+        const wastedScreen = document.getElementById('wasted-screen');
+        const wastedText = document.getElementById('wasted-text');
+        const pitchBlackScreen = document.getElementById('pitch-black-screen');
+        const tryAgainWastedContainer = document.getElementById('try-again-wasted-container');
+        const tryAgainBlackContainer = document.getElementById('try-again-black-container');
+        const tryAgainWastedBtn = document.getElementById('try-again-wasted');
+        const tryAgainBlackBtn = document.getElementById('try-again-black');
+
+        // Stamina System
+        let stamina = 100;
+        const maxStamina = 100;
+        let isSprinting = false;
+        let staminaRechargeTimer = 0;
+        const STAMINA_DRAIN_RATE = 12;
+        const GLIDER_STAMINA_DRAIN = 7;
+        const STAMINA_RECHARGE_RATE = 45;
+        const STAMINA_RECHARGE_DELAY = 0.5;
+        const staminaContainer = document.getElementById('stamina-container');
+        const staminaCanvas = document.getElementById('stamina-canvas');
+        const staminaCtx = staminaCanvas.getContext('2d');
+
+        let lastSprintTapTime = 0;
+
+        // Knife Inventory & Throw/Stash Mechanics (1 active in hand + up to 3 stashed backups = 4 total)
+        const MAX_STASHED_KNIVES = 3;
+        const MAX_KNIVES = 1 + MAX_STASHED_KNIVES;
+        let heldKnivesCount = 1;
+        let isHoldingKnife = true;
+        const GRAVITY = 12;
+        const PICKUP_DISTANCE = 5.0;
+        const BASE_THROW_FORCE = 22;
+        const MELEE_RANGE = 2.5;
+        let closestTargetInRange = null;
+        let nearbyStorableCandidate = null;
+
+        const knifeCountValEl = document.getElementById('knife-count-val');
+
+        // Smart Pistol State (available every round >= 1, free swap back & forth anytime; ammo only refills on new round/glider resupply)
+        const SMART_PISTOL_MAX_AMMO = 5;
+        let isSmartPistolEquipped = false;
+        let isDepletingSmartAmmo = false;
+        let smartAmmoRemaining = SMART_PISTOL_MAX_AMMO;
+        let smartDepleteTimer = 0;
+        let smartPistolRecoil = 0;
+        let smartLockedTargets = [];
+        let smartVolleyQueue = [];
+        let lastSmartBadgeToggleTime = 0;
+
+        // Player Physics & Movement State
+        const playerPosition = new THREE.Vector3(0, 1.6, 5);
+        let playerVerticalVelocity = 0;
+        let isJumping = false;
+        const PLAYER_HEIGHT = 1.6;
+        const JUMP_FORCE = 6.0;
+
+        let cameraYaw = 0;
+        let cameraPitch = 0;
+
+        // Keyboard, Mouse & Gamepad State
+        const keysState = {};
+        let moveInput = { x: 0, y: 0 };
+        let prevGamepadButtonStates = {};
+
+        let prevTime = performance.now();
+        let targetSpawnTimer = 0;
+
+        const instructions = document.getElementById('instructions');
+        const startBtn = document.getElementById('start-btn');
+
+        window.onload = function () {
+            renderHeartsUI();
+            initKnifeInventoryIcons();
+            updateKnifeInventoryUI();
+            init();
+            animate();
+        };
+
+        function isPlayerGrounded() {
+            const currentGroundY = getTerrainHeight(playerPosition.x, playerPosition.z);
+            return !isJumping && !isGliding && !isFreeFalling && playerPosition.y <= currentGroundY + PLAYER_HEIGHT + 0.15;
+        }
+
+        function renderHeartsUI() {
+            const totalHeartSlots = Math.ceil(maxHalfHearts / 2);
+            let html = '';
+
+            for (let i = 0; i < totalHeartSlots; i++) {
+                const slotRemaining = halfHearts - (i * 2);
+                const state = slotRemaining >= 2 ? 'full' : (slotRemaining === 1 ? 'half' : 'empty');
+
+                const heartPath = "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+
+                if (state === 'full') {
+                    html += `<span class="zelda-heart"><svg viewBox="0 0 24 24" width="18" height="18"><path d="${heartPath}" fill="#e74c3c" stroke="#5a0d06" stroke-width="1.5"/></svg></span>`;
+                } else if (state === 'half') {
+                    html += `<span class="zelda-heart"><svg viewBox="0 0 24 24" width="18" height="18"><defs><clipPath id="half-heart-clip-${i}"><rect x="0" y="0" width="12" height="24"/></clipPath></defs><path d="${heartPath}" fill="#2b2b2b" stroke="#5a0d06" stroke-width="1.5"/><path d="${heartPath}" fill="#e74c3c" clip-path="url(#half-heart-clip-${i})"/><path d="${heartPath}" fill="none" stroke="#5a0d06" stroke-width="1.5"/></svg></span>`;
+                } else {
+                    html += `<span class="zelda-heart"><svg viewBox="0 0 24 24" width="18" height="18"><path d="${heartPath}" fill="#2b2b2b" stroke="#5a0d06" stroke-width="1.5"/></svg></span>`;
+                }
+            }
+
+            healthContainerEl.innerHTML = html;
+        }
+
+        function isSmartPistolRound() {
+            return currentPlatformIndex >= 1;
+        }
+
+        function updateSmartAmmoHUD() {
+            const clampedAmmo = Math.max(0, Math.min(SMART_PISTOL_MAX_AMMO, smartAmmoRemaining));
+            smartAmmoValEl.textContent = clampedAmmo;
+            smartAmmoBarFillEl.style.width = `${(clampedAmmo / SMART_PISTOL_MAX_AMMO) * 100}%`;
+        }
+
+        function updateSmartPistolBadge() {
+            if (!isSmartPistolRound()) {
+                smartPistolControlsEl.style.display = 'none';
+                smartPistolBadgeEl.classList.remove('active-equipped');
+                isSmartPistolEquipped = false;
+                isDepletingSmartAmmo = false;
+                smartVolleyQueue = [];
+                smartLockedTargets = [];
+                lockonLayerEl.innerHTML = '';
+                if (smartPistolMesh) smartPistolMesh.visible = false;
+                updateSmartAmmoHUD();
+                return;
+            }
+
+            smartPistolControlsEl.style.display = 'flex';
+            if (isSmartPistolEquipped || isDepletingSmartAmmo) {
+                smartPistolBadgeEl.textContent = '⚡ SMART PISTOL -> KNIFE';
+                smartPistolBadgeEl.classList.add('active-equipped');
+            } else {
+                smartPistolBadgeEl.textContent = '⚡ KNIFE -> SMART PISTOL';
+                smartPistolBadgeEl.classList.remove('active-equipped');
+            }
+            updateSmartAmmoHUD();
+        }
+
+        function triggerGliderAmmoResupplyAnimation() {
+            smartAmmoRemaining = SMART_PISTOL_MAX_AMMO;
+            gliderAmmoReloadTimer = GLIDER_AMMO_RELOAD_DURATION;
+            playGliderAmmoReloadSound();
+            updateSmartAmmoHUD();
+        }
+
+        function toggleSmartPistolAndKnife() {
+            if (isDead || !isSmartPistolRound()) return;
+            const now = performance.now();
+            if (now - lastSmartBadgeToggleTime < 220) return;
+            lastSmartBadgeToggleTime = now;
+
+            ensureAudioContext();
+
+            if (isSmartPistolEquipped || isDepletingSmartAmmo) {
+                swapBackToKnifeAfterSmartPistol();
+                return;
+            }
+
+            // Do NOT refill ammo when switching back to Smart Pistol; ammo only resets on next round / glider resupply
+            isSmartPistolEquipped = true;
+            smartPistolRecoil = 0;
+            smartVolleyQueue = [];
+            isHoldingKnife = false;
+            if (knife) knife.visible = false;
+            if (smartPistolMesh) smartPistolMesh.visible = true;
+
+            updateSmartPistolBadge();
+        }
+
+        function swapBackToKnifeAfterSmartPistol() {
+            isSmartPistolEquipped = false;
+            isDepletingSmartAmmo = false;
+            smartVolleyQueue = [];
+            smartLockedTargets = [];
+            lockonLayerEl.innerHTML = '';
+            if (smartPistolMesh) smartPistolMesh.visible = false;
+
+            if (heldKnivesCount > 0) {
+                equipHeldKnifeModel();
+            } else {
+                isHoldingKnife = false;
+                if (knife) knife.visible = false;
+            }
+            updateSmartPistolBadge();
+        }
+
+        function initKnifeInventoryIcons() {
+            const svgMarkup = `
+                <svg viewBox="0 0 20 44" width="14" height="28" aria-hidden="true">
+                    <polygon points="10,1 14,9 13,25 7,25 6,9" fill="#2c2c2c" stroke="#888" stroke-width="1"/>
+                    <rect x="6" y="24" width="8" height="3" rx="1" fill="#555"/>
+                    <rect x="7.5" y="27" width="5" height="11" rx="1.5" fill="#181818"/>
+                    <circle cx="10" cy="40" r="2.2" fill="#00ffcc"/>
+                </svg>
+            `;
+            document.querySelectorAll('.mini-knife-slot').forEach(slot => {
+                slot.innerHTML = svgMarkup;
+            });
+        }
+
+        function updateKnifeInventoryUI() {
+            const stashedCount = Math.max(0, heldKnivesCount - 1);
+            knifeCountValEl.textContent = stashedCount;
+            const slots = document.querySelectorAll('.mini-knife-slot');
+            slots.forEach((slot, idx) => {
+                if (idx < stashedCount) {
+                    slot.classList.add('filled');
+                } else {
+                    slot.classList.remove('filled');
+                }
+            });
+        }
+
+        function equipHeldKnifeModel() {
+            if (isSmartPistolEquipped || isDepletingSmartAmmo) return;
+            if (!knife) {
+                knife = createKnifeModel(false);
+                scene.add(knife);
+            } else if (!knife.parent) {
+                scene.add(knife);
+            }
+            isHoldingKnife = true;
+            knife.visible = true;
+            knife.scale.set(1.2, 1.2, 1.2);
+            knife.rotation.set(0, 0, 0);
+        }
+
+        function clearThrownKnives() {
+            thrownKnives.forEach(tk => {
+                if (tk.mesh) {
+                    if (tk.mesh.parent) tk.mesh.parent.remove(tk.mesh);
+                    scene.remove(tk.mesh);
+                }
+            });
+            thrownKnives = [];
+        }
+
+        function getEnemiesRemaining() {
+            if (currentPlatformIndex === 0) return 0;
+            let activeTargetsCount = 0;
+            for (let t of targets) {
+                if (!t.userData.isHit) activeTargetsCount++;
+            }
+            const unspawnedEnemies = Math.max(0, targetTotalEnemiesForThisStage - totalEnemiesSpawnedThisStage);
+            return activeTargetsCount + unspawnedEnemies;
+        }
+
+        function updateEnemiesRemainingUI() {
+            knockdownValEl.textContent = getEnemiesRemaining();
+            checkStageClearanceBeacon();
+        }
+
+        function checkStageClearanceBeacon() {
+            const enemiesLeft = getEnemiesRemaining();
+            if (enemiesLeft === 0) {
+                if (gliderPickupMesh && !gliderPickupMesh.visible) {
+                    gliderPickupMesh.visible = true;
+                }
+                if (!clearanceBeaconMesh) {
+                    clearanceBeaconMesh = createClearanceBeacon();
+                    const beaconPos = nextPlatformOffset.clone();
+                    beaconPos.y = getTerrainHeight(beaconPos.x, beaconPos.z);
+                    clearanceBeaconMesh.position.copy(beaconPos);
+                    scene.add(clearanceBeaconMesh);
+                }
+            } else {
+                if (gliderPickupMesh && gliderPickupMesh.visible) {
+                    gliderPickupMesh.visible = false;
+                }
+                if (clearanceBeaconMesh) {
+                    scene.remove(clearanceBeaconMesh);
+                    clearanceBeaconMesh = null;
+                }
+            }
+        }
+
+        function createClearanceBeacon() {
+            const beaconGroup = new THREE.Group();
+
+            const beamGeo = new THREE.CylinderGeometry(2.5, 6.0, 250, 32, 1, true);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: 0x00ffcc,
+                transparent: true,
+                opacity: 0.45,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+            });
+            const beam = new THREE.Mesh(beamGeo, beamMat);
+            beam.position.y = 125;
+            beaconGroup.add(beam);
+
+            const coreGeo = new THREE.CylinderGeometry(0.8, 0.8, 250, 16);
+            const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            core.position.y = 125;
+            beaconGroup.add(core);
+
+            return beaconGroup;
+        }
+
+        function createCenterLitZone(offset) {
+            const group = new THREE.Group();
+            const pos = offset.clone();
+            pos.y = getTerrainHeight(pos.x, pos.z);
+            group.position.copy(pos);
+
+            const discGeo = new THREE.CircleGeometry(3.4, 36);
+            const discMat = new THREE.MeshBasicMaterial({
+                color: 0x2ecc71,
+                transparent: true,
+                opacity: 0.24,
+                side: THREE.DoubleSide
+            });
+            const disc = new THREE.Mesh(discGeo, discMat);
+            disc.rotation.x = -Math.PI / 2;
+            disc.position.y = 0.06;
+            group.add(disc);
+
+            const ringGeo = new THREE.RingGeometry(3.15, 3.55, 36);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x7dffb3,
+                transparent: true,
+                opacity: 0.9,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = 0.08;
+            group.add(ring);
+
+            scene.add(group);
+            return group;
+        }
+
+        function createHealthCrateMesh(pos) {
+            const crateGroup = new THREE.Group();
+            crateGroup.position.copy(pos);
+
+            const boxGeo = new THREE.BoxGeometry(1.15, 0.85, 1.15);
+            const boxMat = new THREE.MeshStandardMaterial({
+                color: 0xf4f9f6,
+                roughness: 0.35,
+                metalness: 0.1
+            });
+            const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+            boxMesh.position.y = 0.52;
+            boxMesh.castShadow = true;
+            boxMesh.receiveShadow = true;
+            crateGroup.add(boxMesh);
+
+            const crossMat = new THREE.MeshStandardMaterial({
+                color: 0x2ecc71,
+                emissive: 0x16a085,
+                emissiveIntensity: 0.55,
+                roughness: 0.3
+            });
+
+            const barH = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.2, 1.2), crossMat);
+            barH.position.y = 0.52;
+            crateGroup.add(barH);
+
+            const barV = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.66, 1.2), crossMat);
+            barV.position.y = 0.52;
+            crateGroup.add(barV);
+
+            const topCrossH = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.06, 0.22), crossMat);
+            topCrossH.position.y = 0.96;
+            crateGroup.add(topCrossH);
+
+            const topCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.66), crossMat);
+            topCrossV.position.y = 0.96;
+            crateGroup.add(topCrossV);
+
+            scene.add(crateGroup);
+            return crateGroup;
+        }
+
+        function restoreFullHealthFromCrate() {
+            halfHearts = maxHalfHearts;
+            renderHeartsUI();
+
+            healFlashEl.style.background = 'rgba(46, 204, 113, 0.32)';
+            setTimeout(() => {
+                healFlashEl.style.background = 'rgba(46, 204, 113, 0)';
+            }, 220);
+        }
+
+        function updateHighestStageDisplay() {
+            bestDepthValEl.textContent = highestStageCleared;
+        }
+
+        function showAreaExitWarning() {
+            warningToastEl.style.display = 'block';
+            if (warningToastTimer) clearTimeout(warningToastTimer);
+            warningToastTimer = setTimeout(() => {
+                warningToastEl.style.display = 'none';
+            }, 2000);
+        }
+
+        function getTerrainHeight(x, z) {
+            let relX = x - currentPlatformOffset.x;
+            let relZ = z - currentPlatformOffset.z;
+            const inCurrentBounds = (Math.abs(relX) <= 100 && Math.abs(relZ) <= 100);
+
+            let nextRelX = x - nextPlatformOffset.x;
+            let nextRelZ = z - nextPlatformOffset.z;
+            const inNextBounds = (Math.abs(nextRelX) <= 100 && Math.abs(nextRelZ) <= 100);
+
+            if (inNextBounds && !inCurrentBounds) {
+                return calculateRawTerrainHeight(nextRelX, nextRelZ, nextPlatformOffset.y);
+            }
+
+            return calculateRawTerrainHeight(relX, relZ, currentPlatformOffset.y);
+        }
+
+        function calculateRawTerrainHeight(relX, relZ, baseY) {
+            if (!isHillsMode) return baseY;
+            return baseY + Math.sin(relX * 0.08) * 2.2 + Math.cos(relZ * 0.08) * 2.2 + Math.sin(relX * 0.03 + relZ * 0.03) * 3.5;
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x5c93c4);
+            scene.fog = new THREE.FogExp2(0x5c93c4, 0.005);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.rotation.order = 'YXZ';
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            sunLight = new THREE.DirectionalLight(0xfff8e7, 1.1);
+            sunLight.position.set(30, 50, 30);
+            sunLight.castShadow = true;
+            scene.add(sunLight);
+
+            flashlight = new THREE.SpotLight(0xffffff, 0, 40, Math.PI / 6, 0.5, 1.5);
+            flashlight.position.set(0, 0, 0);
+            flashlight.target.position.set(0, 0, -10);
+            scene.add(flashlight);
+            scene.add(flashlight.target);
+
+            createNightEnvironment();
+
+            activeGliderMesh = createZeldaGliderModel();
+            activeGliderMesh.visible = false;
+            scene.add(activeGliderMesh);
+
+            currentPlatformOffset.set(0, 0, 0);
+            nextPlatformOffset.copy(currentPlatformOffset).add(PLATFORM_OFFSET_STEP);
+
+            currentGroundMesh = createTerrainMesh(currentPlatformOffset);
+            currentGrid = createGridHelper(currentPlatformOffset);
+
+            nextGroundMesh = createTerrainMesh(nextPlatformOffset);
+            nextGrid = createGridHelper(nextPlatformOffset);
+
+            setupRecursiveStageItems();
+
+            spawnObstaclesForPlatform(currentPlatformOffset, obstacles);
+            spawnObstaclesForPlatform(nextPlatformOffset, nextObstacles);
+
+            knife = createKnifeModel(false);
+            scene.add(knife);
+            equipHeldKnifeModel();
+
+            smartPistolMesh = createSmartPistolModel();
+            smartPistolMesh.visible = false;
+            scene.add(smartPistolMesh);
+
+            updateHighestStageDisplay();
+            updateSmartPistolBadge();
+            resetTargets();
+
+            setupKeyboardAndMouseControls();
+
+            startBtn.addEventListener('click', () => {
+                ensureAudioContext();
+                instructions.style.display = 'none';
+                isGameStarted = true;
+                restartGame();
+                document.body.requestPointerLock();
+            });
+
+            tryAgainWastedBtn.addEventListener('click', () => {
+                ensureAudioContext();
+                restartGame();
+                document.body.requestPointerLock();
+            });
+
+            tryAgainBlackBtn.addEventListener('click', () => {
+                ensureAudioContext();
+                restartGame();
+                document.body.requestPointerLock();
+            });
+
+            const bindMenuToggles = (nightBtnId, terrainBtnId) => {
+                const nBtn = document.getElementById(nightBtnId);
+                const tBtn = document.getElementById(terrainBtnId);
+
+                if (nBtn) {
+                    nBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        isNightMode = !isNightMode;
+                        syncToggleUIState();
+                    });
+                }
+
+                if (tBtn) {
+                    tBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        isHillsMode = !isHillsMode;
+                        rebuildTerrains();
+                        syncToggleUIState();
+                    });
+                }
+            };
+
+            bindMenuToggles('menu-night-mode-btn', 'menu-terrain-btn');
+            bindMenuToggles('try-night-mode-btn', 'try-terrain-btn');
+            bindMenuToggles('black-night-mode-btn', 'black-terrain-btn');
+
+            window.addEventListener('resize', onWindowResize);
+            syncToggleUIState();
+            drawStaminaWheel();
+        }
+
+        function handleGlideOrStashAction() {
+            if (!isGameStarted || isDead) return;
+            if (hasGlider && (isGliding || isFreeFalling)) {
+                toggleFreeFallMode();
+            } else if (isPlayerGrounded()) {
+                stashNearbyKnife();
+            }
+        }
+
+        function setupKeyboardAndMouseControls() {
+            window.addEventListener('keydown', (e) => {
+                keysState[e.code] = true;
+
+                if (isGameStarted && !isDead) {
+                    if (e.code === 'KeyC') {
+                        handleGlideOrStashAction();
+                    }
+                    if (e.code === 'KeyV') {
+                        toggleSmartPistolAndKnife();
+                    }
+                    if (e.code === 'Space') {
+                        triggerJump();
+                    }
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keysState[e.code] = false;
+            });
+
+            document.addEventListener('click', () => {
+                if (isGameStarted && !isDead && document.pointerLockElement !== document.body) {
+                    document.body.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (isGameStarted && !isDead && e.button === 0 && document.pointerLockElement === document.body) {
+                    handleInteractClick();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isGameStarted && !isDead && document.pointerLockElement === document.body) {
+                    const sensitivity = 0.0022;
+                    cameraYaw -= e.movementX * sensitivity;
+                    cameraPitch -= e.movementY * sensitivity;
+                    cameraPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, cameraPitch));
+                }
+            });
+        }
+
+        function updateKeyboardInput() {
+            let moveX = 0;
+            let moveY = 0;
+
+            // Inverted Forward / Backwards mapping (W moves back, S moves forward)
+            if (keysState['KeyW'] || keysState['ArrowUp']) moveY -= 1;
+            if (keysState['KeyS'] || keysState['ArrowDown']) moveY += 1;
+
+            if (keysState['KeyA'] || keysState['ArrowLeft']) moveX += 1;
+            if (keysState['KeyD'] || keysState['ArrowRight']) moveX -= 1;
+
+            moveInput.x = moveX;
+            moveInput.y = moveY;
+
+            const wantsSprint = !!(keysState['ShiftLeft'] || keysState['ShiftRight']);
+            if (wantsSprint && !isSprinting && stamina > 5) {
+                lastSprintTapTime = performance.now();
+            }
+            isSprinting = wantsSprint && stamina > 5;
+        }
+
+        function syncToggleUIState() {
+            const nightBtns = [
+                document.getElementById('menu-night-mode-btn'),
+                document.getElementById('try-night-mode-btn'),
+                document.getElementById('black-night-mode-btn')
+            ];
+            const terrainBtns = [
+                document.getElementById('menu-terrain-btn'),
+                document.getElementById('try-terrain-btn'),
+                document.getElementById('black-terrain-btn')
+            ];
+
+            nightBtns.forEach(btn => {
+                if (btn) {
+                    btn.classList.toggle('active', isNightMode);
+                }
+            });
+
+            terrainBtns.forEach(btn => {
+                if (btn) {
+                    btn.classList.toggle('active', isHillsMode);
+                    btn.textContent = isHillsMode ? 'HILLS' : 'FLAT GROUND';
+                }
+            });
+
+            applyEnvironmentStyles();
+        }
+
+        function rebuildTerrains() {
+            if (currentGroundMesh) disposeMesh(currentGroundMesh);
+            if (currentGrid) disposeMesh(currentGrid);
+            if (nextGroundMesh) disposeMesh(nextGroundMesh);
+            if (nextGrid) disposeMesh(nextGrid);
+
+            currentGroundMesh = createTerrainMesh(currentPlatformOffset);
+            currentGrid = createGridHelper(currentPlatformOffset);
+
+            nextGroundMesh = createTerrainMesh(nextPlatformOffset);
+            nextGrid = createGridHelper(nextPlatformOffset);
+
+            setupRecursiveStageItems();
+        }
+
+        function syncNightSkyToCurrentLevel() {
+            if (!nightSkyGroup) return;
+            nightSkyGroup.rotation.set(0, 0, 0);
+            nightSkyGroup.position.set(
+                currentPlatformOffset.x,
+                currentPlatformOffset.y + 80,
+                currentPlatformOffset.z
+            );
+            if (shootingStarData) {
+                shootingStarData.active = false;
+                shootingStarData.timer = 0;
+                if (shootingStarLine && shootingStarLine.material) {
+                    shootingStarLine.material.opacity = 0;
+                }
+            }
+        }
+
+        function applyEnvironmentStyles() {
+            if (isNightMode) {
+                scene.background.set(0x050b14);
+                scene.fog.color.set(0x050b14);
+                scene.fog.density = 0.015;
+                ambientLight.intensity = 0.08;
+                sunLight.intensity = 0.15;
+                sunLight.color.set(0x88bbff);
+                flashlight.intensity = 4.5;
+                syncNightSkyToCurrentLevel();
+                if (nightSkyGroup) nightSkyGroup.visible = true;
+            } else {
+                scene.background.set(0x5c93c4);
+                scene.fog.color.set(0x5c93c4);
+                scene.fog.density = 0.005;
+                ambientLight.intensity = 0.75;
+                sunLight.intensity = 1.1;
+                sunLight.color.set(0xfff8e7);
+                flashlight.intensity = 0;
+                if (nightSkyGroup) nightSkyGroup.visible = false;
+            }
+        }
+
+        function toggleFreeFallMode() {
+            if (isFreeFalling) {
+                if (stamina > 0) {
+                    isFreeFalling = false;
+                    isGliding = true;
+                    activeGliderMesh.visible = true;
+                    triggerGliderAmmoResupplyAnimation();
+                }
+            } else if (isGliding) {
+                isGliding = false;
+                isFreeFalling = true;
+                activeGliderMesh.visible = false;
+
+                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+                glideForwardVelocity.copy(forward).multiplyScalar(12.0);
+            }
+        }
+
+        function createZeldaGliderModel() {
+            const gliderGroup = new THREE.Group();
+
+            const sailShape = new THREE.Shape();
+            sailShape.moveTo(-3.2, 0);
+            sailShape.quadraticCurveTo(0, 0.8, 3.2, 0);
+            sailShape.quadraticCurveTo(1.6, -1.6, 0, -1.8);
+            sailShape.quadraticCurveTo(-1.6, -1.6, -3.2, 0);
+
+            const extrudeSettings = { depth: 0.04, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.02, bevelThickness: 0.02 };
+            const sailGeo = new THREE.ExtrudeGeometry(sailShape, extrudeSettings);
+            const sailMat = new THREE.MeshStandardMaterial({ color: 0x1e6fd9, roughness: 0.5, metalness: 0.1 });
+            const sail = new THREE.Mesh(sailGeo, sailMat);
+            sail.rotation.x = Math.PI / 2;
+            sail.castShadow = true;
+            gliderGroup.add(sail);
+
+            const stripeMat = new THREE.MeshStandardMaterial({ color: 0x90caf9, roughness: 0.4 });
+            const stripeGeo = new THREE.BoxGeometry(6.1, 0.06, 0.25);
+            const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+            stripe.position.set(0, 0.02, -0.7);
+            gliderGroup.add(stripe);
+
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2c11, roughness: 0.8 });
+
+            const crossBarGeo = new THREE.CylinderGeometry(0.06, 0.06, 6.2, 12);
+            const crossBar = new THREE.Mesh(crossBarGeo, woodMat);
+            crossBar.rotation.z = Math.PI / 2;
+            crossBar.position.set(0, -0.05, -0.05);
+            gliderGroup.add(crossBar);
+
+            const strutGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8);
+            const leftStrut = new THREE.Mesh(strutGeo, woodMat);
+            leftStrut.position.set(-1.2, -0.65, -0.4);
+            leftStrut.rotation.x = -0.3;
+            gliderGroup.add(leftStrut);
+
+            const rightStrut = new THREE.Mesh(strutGeo, woodMat);
+            rightStrut.position.set(1.2, -0.65, -0.4);
+            rightStrut.rotation.x = -0.3;
+            gliderGroup.add(rightStrut);
+
+            const handleGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8);
+            const leftHandle = new THREE.Mesh(handleGeo, woodMat);
+            leftHandle.position.set(-0.8, -1.2, -0.6);
+            leftHandle.rotation.z = Math.PI / 2;
+            gliderGroup.add(leftHandle);
+
+            const rightHandle = new THREE.Mesh(handleGeo, woodMat);
+            rightHandle.position.set(0.8, -1.2, -0.6);
+            rightHandle.rotation.z = Math.PI / 2;
+            gliderGroup.add(rightHandle);
+
+            // Mount Smart Pistol directly under the glider sail
+            const mountedPistol = createSmartPistolModel();
+            mountedPistol.scale.set(1.35, 1.35, 1.35);
+            mountedPistol.position.set(0, -0.35, -0.45);
+            gliderGroup.add(mountedPistol);
+            gliderGroup.userData.mountedPistol = mountedPistol;
+
+            gliderGroup.scale.set(0.65, 0.65, 0.65);
+            return gliderGroup;
+        }
+
+        function createGliderPickup() {
+            const pickup = new THREE.Group();
+            const gliderModel = createZeldaGliderModel();
+            gliderModel.position.set(0, 0.8, 0);
+            pickup.add(gliderModel);
+
+            const baseGeo = new THREE.CylinderGeometry(1.2, 1.5, 0.3, 16);
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x334433, roughness: 0.7 });
+            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            pickup.add(baseMesh);
+
+            const ringGeo = new THREE.RingGeometry(1.2, 1.6, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.rotation.x = -Math.PI / 2;
+            ringMesh.position.y = 0.16;
+            pickup.add(ringMesh);
+
+            pickup.visible = false;
+            return pickup;
+        }
+
+        function clearStageZoneAndCrate(zoneMesh, crateMesh) {
+            if (zoneMesh) {
+                zoneMesh.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    }
+                });
+                scene.remove(zoneMesh);
+            }
+            if (crateMesh) {
+                crateMesh.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    }
+                });
+                scene.remove(crateMesh);
+            }
+        }
+
+        function setupRecursiveStageItems() {
+            if (gliderPickupMesh) scene.remove(gliderPickupMesh);
+            if (nextGliderPickupMesh) scene.remove(nextGliderPickupMesh);
+            clearStageZoneAndCrate(currentCenterZoneMesh, currentHealthCrateMesh);
+            clearStageZoneAndCrate(nextCenterZoneMesh, nextHealthCrateMesh);
+
+            gliderPickupMesh = createGliderPickup();
+            currentGliderPickupPos.copy(currentPlatformOffset).add(GLIDER_RELATIVE_POS);
+            currentGliderPickupPos.y = getTerrainHeight(currentGliderPickupPos.x, currentGliderPickupPos.z);
+            gliderPickupMesh.position.copy(currentGliderPickupPos);
+            scene.add(gliderPickupMesh);
+
+            nextGliderPickupMesh = createGliderPickup();
+            nextGliderPickupPos.copy(nextPlatformOffset).add(GLIDER_RELATIVE_POS);
+            nextGliderPickupPos.y = getTerrainHeight(nextGliderPickupPos.x, nextGliderPickupPos.z);
+            nextGliderPickupMesh.position.copy(nextGliderPickupPos);
+            scene.add(nextGliderPickupMesh);
+
+            currentCenterZoneMesh = createCenterLitZone(currentPlatformOffset);
+            currentHealthCratePos.set(
+                currentPlatformOffset.x,
+                getTerrainHeight(currentPlatformOffset.x, currentPlatformOffset.z),
+                currentPlatformOffset.z
+            );
+            currentHealthCrateActive = true;
+            currentHealthCrateMesh = createHealthCrateMesh(currentHealthCratePos);
+
+            nextCenterZoneMesh = createCenterLitZone(nextPlatformOffset);
+            nextHealthCratePos.set(
+                nextPlatformOffset.x,
+                getTerrainHeight(nextPlatformOffset.x, nextPlatformOffset.z),
+                nextPlatformOffset.z
+            );
+            nextHealthCrateActive = true;
+            nextHealthCrateMesh = createHealthCrateMesh(nextHealthCratePos);
+        }
+
+        function disposeMesh(mesh) {
+            if (!mesh) return;
+            mesh.traverse(child => {
+                if (child.isMesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                }
+            });
+            scene.remove(mesh);
+        }
+
+        function purgeOldStageAssets() {
+            targets.forEach(t => {
+                scene.remove(t);
+                t.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    }
+                });
+            });
+            targets = [];
+
+            spinningGoodGuys.forEach(s => disposeMesh(s.mesh));
+            spinningGoodGuys = [];
+
+            enemyKnives.forEach(ek => disposeMesh(ek.mesh));
+            enemyKnives = [];
+
+            droppedEnemyKnives.forEach(dk => disposeMesh(dk));
+            droppedEnemyKnives = [];
+
+            smartTracers.forEach(tr => disposeMesh(tr.mesh));
+            smartTracers = [];
+
+            clearThrownKnives();
+
+            if (!isSmartPistolEquipped && !isDepletingSmartAmmo) {
+                if (heldKnivesCount > 0) {
+                    equipHeldKnifeModel();
+                } else {
+                    isHoldingKnife = false;
+                    if (knife) knife.visible = false;
+                }
+            }
+
+            obstacles.forEach(o => disposeMesh(o.mesh));
+            obstacles = [];
+
+            if (currentGroundMesh) disposeMesh(currentGroundMesh);
+            if (currentGrid) disposeMesh(currentGrid);
+            if (gliderPickupMesh) scene.remove(gliderPickupMesh);
+            clearStageZoneAndCrate(currentCenterZoneMesh, currentHealthCrateMesh);
+            currentCenterZoneMesh = null;
+            currentHealthCrateMesh = null;
+        }
+
+        function triggerRecursiveTerrainTransition() {
+            currentPlatformIndex++;
+            depthValEl.textContent = currentPlatformIndex;
+
+            isSmartPistolEquipped = false;
+            isDepletingSmartAmmo = false;
+            smartAmmoRemaining = SMART_PISTOL_MAX_AMMO;
+            smartVolleyQueue = [];
+            if (smartPistolMesh) smartPistolMesh.visible = false;
+            if (heldKnivesCount > 0) {
+                equipHeldKnifeModel();
+            }
+            updateSmartPistolBadge();
+
+            maxHalfHearts = Math.min(MAX_HALF_HEARTS_CAP, START_HALF_HEARTS + currentPlatformIndex);
+            halfHearts = maxHalfHearts;
+            renderHeartsUI();
+
+            if (currentPlatformIndex > highestStageCleared) {
+                highestStageCleared = currentPlatformIndex;
+                localStorage.setItem('prophunt_max_stage_cleared', highestStageCleared.toString());
+                updateHighestStageDisplay();
+            }
+
+            if (clearanceBeaconMesh) {
+                scene.remove(clearanceBeaconMesh);
+                clearanceBeaconMesh = null;
+            }
+
+            purgeOldStageAssets();
+
+            currentPlatformOffset.copy(nextPlatformOffset);
+            currentGroundMesh = nextGroundMesh;
+            currentGrid = nextGrid;
+            obstacles = nextObstacles;
+
+            // Respawn/reposition static night sky above the new current stage
+            syncNightSkyToCurrentLevel();
+
+            gliderPickupMesh = nextGliderPickupMesh;
+            currentGliderPickupPos.copy(nextGliderPickupPos);
+
+            currentCenterZoneMesh = nextCenterZoneMesh;
+            currentHealthCrateMesh = nextHealthCrateMesh;
+            currentHealthCratePos.copy(nextHealthCratePos);
+            currentHealthCrateActive = nextHealthCrateActive;
+
+            nextPlatformOffset.add(PLATFORM_OFFSET_STEP);
+            nextGroundMesh = createTerrainMesh(nextPlatformOffset);
+            nextGrid = createGridHelper(nextPlatformOffset);
+
+            nextObstacles = [];
+            spawnObstaclesForPlatform(nextPlatformOffset, nextObstacles);
+
+            nextGliderPickupMesh = createGliderPickup();
+            nextGliderPickupPos.copy(nextPlatformOffset).add(GLIDER_RELATIVE_POS);
+            nextGliderPickupPos.y = getTerrainHeight(nextGliderPickupPos.x, nextGliderPickupPos.z);
+            nextGliderPickupMesh.position.copy(nextGliderPickupPos);
+            scene.add(nextGliderPickupMesh);
+
+            nextCenterZoneMesh = createCenterLitZone(nextPlatformOffset);
+            nextHealthCratePos.set(
+                nextPlatformOffset.x,
+                getTerrainHeight(nextPlatformOffset.x, nextPlatformOffset.z),
+                nextPlatformOffset.z
+            );
+            nextHealthCrateActive = true;
+            nextHealthCrateMesh = createHealthCrateMesh(nextHealthCratePos);
+
+            hasGlider = false;
+            isGliding = false;
+            isFreeFalling = false;
+            activeGliderMesh.visible = false;
+            gliderStatusEl.textContent = "NONE";
+            gliderStatusEl.style.color = "#f1c40f";
+
+            resetTargets();
+        }
+
+        function createTerrainMesh(offset) {
+            const groundGeometry = new THREE.PlaneGeometry(200, 200, 80, 80);
+            const posAttr = groundGeometry.attributes.position;
+
+            for (let i = 0; i < posAttr.count; i++) {
+                const vx = posAttr.getX(i);
+                const vy = posAttr.getY(i);
+                posAttr.setZ(i, calculateRawTerrainHeight(vx, -vy, 0));
+            }
+
+            groundGeometry.computeVertexNormals();
+
+            const colorVal = isNightMode ? 0x112211 : 0x3b7a32;
+            const groundMaterial = new THREE.MeshStandardMaterial({
+                color: colorVal,
+                roughness: 0.85,
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(groundGeometry, groundMaterial);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.copy(offset);
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function createGridHelper(offset) {
+            if (isHillsMode) return null;
+            const gridColor = isNightMode ? 0x1c331c : 0x4f9c44;
+            const gridCenterColor = isNightMode ? 0x1c331c : 0x2c5c24;
+            const grid = new THREE.GridHelper(200, 50, gridColor, gridCenterColor);
+            grid.position.copy(offset);
+            grid.position.y += 0.01;
+            scene.add(grid);
+            return grid;
+        }
+
+        function restartGame() {
+            isDead = false;
+            moveInput = { x: 0, y: 0 };
+            gliderAmmoReloadTimer = 0;
+            wastedScreen.style.opacity = '0';
+            wastedScreen.style.animation = 'none';
+            pitchBlackScreen.style.display = 'none';
+            tryAgainWastedContainer.style.display = 'none';
+            tryAgainBlackContainer.style.display = 'none';
+            damageFlashEl.style.background = 'rgba(231, 76, 60, 0)';
+            healFlashEl.style.background = 'rgba(46, 204, 113, 0)';
+
+            maxHalfHearts = START_HALF_HEARTS;
+            halfHearts = START_HALF_HEARTS;
+            renderHeartsUI();
+
+            heldKnivesCount = 1;
+            updateKnifeInventoryUI();
+
+            isSmartPistolEquipped = false;
+            isDepletingSmartAmmo = false;
+            smartAmmoRemaining = SMART_PISTOL_MAX_AMMO;
+            smartVolleyQueue = [];
+            if (smartPistolMesh) smartPistolMesh.visible = false;
+
+            currentPlatformIndex = 0;
+            depthValEl.textContent = currentPlatformIndex;
+            updateHighestStageDisplay();
+            updateSmartPistolBadge();
+
+            if (clearanceBeaconMesh) {
+                scene.remove(clearanceBeaconMesh);
+                clearanceBeaconMesh = null;
+            }
+
+            currentPlatformOffset.set(0, 0, 0);
+            nextPlatformOffset.copy(currentPlatformOffset).add(PLATFORM_OFFSET_STEP);
+
+            if (currentGroundMesh) disposeMesh(currentGroundMesh);
+            if (currentGrid) disposeMesh(currentGrid);
+            if (nextGroundMesh) disposeMesh(nextGroundMesh);
+            if (nextGrid) disposeMesh(nextGrid);
+
+            currentGroundMesh = createTerrainMesh(currentPlatformOffset);
+            currentGrid = createGridHelper(currentPlatformOffset);
+
+            nextGroundMesh = createTerrainMesh(nextPlatformOffset);
+            nextGrid = createGridHelper(nextPlatformOffset);
+
+            hasGlider = false;
+            isGliding = false;
+            isFreeFalling = false;
+            activeGliderMesh.visible = false;
+            gliderStatusEl.textContent = "NONE";
+            gliderStatusEl.style.color = "#f1c40f";
+
+            stamina = maxStamina;
+            isSprinting = false;
+
+            const spawnPos = currentPlatformOffset.clone().add(GLIDER_RELATIVE_POS);
+            spawnPos.z -= 4.0;
+            spawnPos.y = getTerrainHeight(spawnPos.x, spawnPos.z) + PLAYER_HEIGHT;
+            playerPosition.copy(spawnPos);
+
+            playerVerticalVelocity = 0;
+            isJumping = false;
+            cameraYaw = Math.PI;
+            cameraPitch = 0;
+
+            purgeOldStageAssets();
+            nextObstacles.forEach(o => disposeMesh(o.mesh));
+            nextObstacles = [];
+
+            spawnObstaclesForPlatform(currentPlatformOffset, obstacles);
+            spawnObstaclesForPlatform(nextPlatformOffset, nextObstacles);
+            setupRecursiveStageItems();
+
+            resetTargets();
+            equipHeldKnifeModel();
+
+            applyEnvironmentStyles();
+        }
+
+        function drawStaminaWheel() {
+            staminaCtx.clearRect(0, 0, 100, 100);
+            if (stamina >= maxStamina && !isSprinting && !isGliding) return;
+
+            const centerX = 50;
+            const centerY = 50;
+            const radius = 36;
+            const innerRadius = 26;
+
+            staminaCtx.beginPath();
+            staminaCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            staminaCtx.arc(centerX, centerY, innerRadius, Math.PI * 2, 0, true);
+            staminaCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            staminaCtx.fill();
+
+            const fillFraction = stamina / maxStamina;
+            const startAngle = -Math.PI / 2;
+            const endAngle = startAngle + (Math.PI * 2 * fillFraction);
+
+            staminaCtx.beginPath();
+            staminaCtx.arc(centerX, centerY, radius, startAngle, endAngle, false);
+            staminaCtx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+            staminaCtx.closePath();
+
+            staminaCtx.fillStyle = isGliding ? 'rgba(52, 152, 219, 0.95)' : (stamina < 25 ? 'rgba(243, 156, 18, 0.9)' : 'rgba(46, 204, 113, 0.9)');
+            staminaCtx.fill();
+        }
+
+        function createTreeObstacle(x, z, groundY) {
+            const treeGroup = new THREE.Group();
+            treeGroup.position.set(x, groundY, z);
+
+            const trunkRadius = 0.55 + Math.random() * 0.25;
+            const trunkHeight = 3.6 + Math.random() * 1.4;
+
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.9 });
+            const trunkGeo = new THREE.CylinderGeometry(trunkRadius * 0.8, trunkRadius, trunkHeight, 10);
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = trunkHeight * 0.5;
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            treeGroup.add(trunk);
+
+            const foliageMat = new THREE.MeshStandardMaterial({
+                color: isNightMode ? 0x16381c : 0x246b2a,
+                roughness: 0.8,
+                flatShading: true
+            });
+
+            const crown1 = new THREE.Mesh(new THREE.ConeGeometry(trunkRadius * 3.4, 3.2, 8), foliageMat);
+            crown1.position.y = trunkHeight + 0.9;
+            crown1.castShadow = true;
+            crown1.receiveShadow = true;
+            treeGroup.add(crown1);
+
+            const crown2 = new THREE.Mesh(new THREE.ConeGeometry(trunkRadius * 2.5, 2.6, 8), foliageMat);
+            crown2.position.y = trunkHeight + 2.5;
+            crown2.castShadow = true;
+            crown2.receiveShadow = true;
+            treeGroup.add(crown2);
+
+            scene.add(treeGroup);
+            return {
+                mesh: treeGroup,
+                type: 'tree',
+                radius: trunkRadius + 0.25,
+                trunkHeight: trunkHeight
+            };
+        }
+
+        function spawnObstaclesForPlatform(platformOffsetVec, obstacleArray) {
+            for (let i = 0; i < 36; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 8 + Math.random() * 55;
+                const x = platformOffsetVec.x + Math.sin(angle) * distance;
+                const z = platformOffsetVec.z - Math.cos(angle) * distance;
+
+                if (Math.hypot(x - platformOffsetVec.x, z - platformOffsetVec.z) < 5.5) {
+                    continue;
+                }
+
+                const groundY = getTerrainHeight(x, z);
+                obstacleArray.push(createTreeObstacle(x, z, groundY));
+            }
+        }
+
+        function createNightEnvironment() {
+            nightSkyGroup = new THREE.Group();
+
+            const moonGeo = new THREE.SphereGeometry(6, 32, 32);
+            const moonMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
+            const moon = new THREE.Mesh(moonGeo, moonMat);
+            moon.position.set(60, 80, -120);
+            nightSkyGroup.add(moon);
+
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 350;
+            const starPositions = [];
+            starDataAttributes = [];
+
+            for (let i = 0; i < starCount; i++) {
+                const u = Math.random();
+                const v = Math.random();
+                const theta = u * 2.0 * Math.PI;
+                const phi = Math.acos(2.0 * v - 1.0);
+                const r = 180 + Math.random() * 40;
+
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = Math.abs(r * Math.cos(phi)) + 20;
+                const z = r * Math.sin(phi) * Math.sin(theta);
+
+                starPositions.push(x, y, z);
+                starDataAttributes.push({
+                    baseSize: 1.2 + Math.random() * 1.8,
+                    speed: 2.0 + Math.random() * 4.0,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+            const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2.0, sizeAttenuation: true, transparent: true });
+            starPointsMesh = new THREE.Points(starGeo, starMat);
+            nightSkyGroup.add(starPointsMesh);
+
+            const lineGeo = new THREE.BufferGeometry();
+            const linePositions = new Float32Array(6);
+            lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+            const lineMat = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                linewidth: 2,
+                blending: THREE.AdditiveBlending
+            });
+            shootingStarLine = new THREE.Line(lineGeo, lineMat);
+            nightSkyGroup.add(shootingStarLine);
+
+            shootingStarData = {
+                active: false,
+                timer: 0,
+                nextSpawnTime: 2.0 + Math.random() * 4.0,
+                posStart: new THREE.Vector3(),
+                posEnd: new THREE.Vector3(),
+                currentProgress: 0,
+                duration: 0.6
+            };
+
+            nightSkyGroup.visible = false;
+            scene.add(nightSkyGroup);
+            syncNightSkyToCurrentLevel();
+        }
+
+        function updateNightSkyAnimations(delta, elapsedTime) {
+            if (!isNightMode || !nightSkyGroup || !nightSkyGroup.visible) return;
+
+            // Keep stars and moon static above the active stage without spinning
+            nightSkyGroup.rotation.set(0, 0, 0);
+            nightSkyGroup.position.set(
+                currentPlatformOffset.x,
+                currentPlatformOffset.y + 80,
+                currentPlatformOffset.z
+            );
+        }
+
+        function resetTargets() {
+            targets.forEach(t => scene.remove(t));
+            targets = [];
+
+            spinningGoodGuys.forEach(s => scene.remove(s.mesh));
+            spinningGoodGuys = [];
+
+            totalEnemiesSpawnedThisStage = 0;
+            targetTotalEnemiesForThisStage = Math.floor(Math.random() * 11) + 3;
+
+            if (currentPlatformIndex > 0) {
+                const initialCount = Math.min(3, targetTotalEnemiesForThisStage);
+                for (let i = 0; i < initialCount; i++) {
+                    spawnTarget();
+                }
+            }
+            updateEnemiesRemainingUI();
+        }
+
+        function createKnifeModel(isEnemy) {
+            const knifeGroup = new THREE.Group();
+
+            const bladeMat = new THREE.MeshStandardMaterial({
+                color: isEnemy ? 0x111111 : 0x222222,
+                metalness: 0.9,
+                roughness: 0.25
+            });
+
+            const bladeGeo = new THREE.BoxGeometry(0.07, 0.52, 0.015);
+            const blade = new THREE.Mesh(bladeGeo, bladeMat);
+            blade.position.y = 0.31;
+            blade.castShadow = true;
+            knifeGroup.add(blade);
+
+            const tipGeo = new THREE.ConeGeometry(0.035, 0.15, 4);
+            const tip = new THREE.Mesh(tipGeo, bladeMat);
+            tip.rotation.y = Math.PI / 4;
+            tip.position.y = 0.645;
+            tip.castShadow = true;
+            knifeGroup.add(tip);
+
+            const handleGeo = new THREE.BoxGeometry(0.06, 0.38, 0.025);
+            const handleMat = new THREE.MeshStandardMaterial({
+                color: isEnemy ? 0x440000 : 0x111111,
+                roughness: 0.8
+            });
+            const handle = new THREE.Mesh(handleGeo, handleMat);
+            handle.position.y = -0.19;
+            handle.castShadow = true;
+            knifeGroup.add(handle);
+
+            const accentGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.03, 12);
+            const accentMat = isEnemy ?
+                new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3 }) :
+                new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8, roughness: 0.2 });
+
+            const accent = new THREE.Mesh(accentGeo, accentMat);
+            accent.rotation.z = Math.PI / 2;
+            accent.position.set(0, -0.34, 0);
+            knifeGroup.add(accent);
+
+            knifeGroup.scale.set(1.2, 1.2, 1.2);
+            return knifeGroup;
+        }
+
+        function createSmartPistolModel() {
+            const pistolGroup = new THREE.Group();
+
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x1c252c,
+                metalness: 0.75,
+                roughness: 0.3
+            });
+            const accentMat = new THREE.MeshStandardMaterial({
+                color: 0x00ffcc,
+                emissive: 0x00ffcc,
+                emissiveIntensity: 0.85,
+                roughness: 0.2
+            });
+
+            const slide = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.36), bodyMat);
+            slide.position.set(0, 0.05, -0.04);
+            pistolGroup.add(slide);
+
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.14, 10), accentMat);
+            barrel.rotation.x = Math.PI / 2;
+            barrel.position.set(0, 0.06, -0.22);
+            pistolGroup.add(barrel);
+
+            const railStrip = new THREE.Mesh(new THREE.BoxGeometry(0.096, 0.025, 0.22), accentMat);
+            railStrip.position.set(0, 0.095, -0.05);
+            pistolGroup.add(railStrip);
+
+            const grip = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.18, 0.09), bodyMat);
+            grip.position.set(0, -0.06, 0.07);
+            grip.rotation.x = 0.28;
+            pistolGroup.add(grip);
+
+            return pistolGroup;
+        }
+
+        function createGoodGuyTargetMesh(scale) {
+            const goodGuyGroup = new THREE.Group();
+            const radii = [1.0, 0.75, 0.5, 0.25];
+            const goodGuyColors = [0xffffff, 0x3498db, 0xffffff, 0x3498db];
+
+            for (let i = 0; i < radii.length; i++) {
+                const ringGeo = new THREE.CylinderGeometry(radii[i], radii[i], 0.1, 32);
+                const ringMat = new THREE.MeshStandardMaterial({ color: goodGuyColors[i], roughness: 0.4 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.castShadow = true;
+                ring.receiveShadow = true;
+                goodGuyGroup.add(ring);
+            }
+
+            goodGuyGroup.scale.set(scale, scale, scale);
+            return goodGuyGroup;
+        }
+
+        function spawnTarget() {
+            if (currentPlatformIndex === 0) return;
+            if (totalEnemiesSpawnedThisStage >= targetTotalEnemiesForThisStage) return;
+            totalEnemiesSpawnedThisStage++;
+
+            const targetGroup = new THREE.Group();
+
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 8 + Math.random() * 7;
+
+            const spawnX = playerPosition.x + Math.sin(angle) * distance;
+            const spawnZ = playerPosition.z - Math.cos(angle) * distance;
+            const groundY = getTerrainHeight(spawnX, spawnZ);
+            const height = groundY + 1.2 + Math.random() * 1.5;
+
+            targetGroup.position.set(spawnX, height, spawnZ);
+            targetGroup.lookAt(playerPosition.x, height, playerPosition.z);
+
+            const mainTargetGroup = new THREE.Group();
+            const radii = [1.0, 0.75, 0.5, 0.25];
+            const enemyColors = [0xffffff, 0xe74c3c, 0xffffff, 0xe74c3c];
+
+            for (let i = 0; i < radii.length; i++) {
+                const ringGeo = new THREE.CylinderGeometry(radii[i], radii[i], 0.1, 32);
+                const ringMat = new THREE.MeshStandardMaterial({ color: enemyColors[i], roughness: 0.4 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.castShadow = true;
+                ring.receiveShadow = true;
+                mainTargetGroup.add(ring);
+            }
+            targetGroup.add(mainTargetGroup);
+
+            const goodGuyMeshes = [];
+            const count = Math.floor(Math.random() * 7) + 2;
+            const isOscillatingTarget = Math.random() < 0.5;
+            const startAngle = Math.random() * Math.PI * 2;
+
+            for (let i = 0; i < count; i++) {
+                const scale = 0.3 + Math.random() * 0.4;
+                const goodGuyGroup = createGoodGuyTargetMesh(scale);
+
+                let offsetX = 0;
+                let offsetY = 0;
+                let offsetZ = 0;
+                let sweepRange = 1.8;
+                let oscSpeed = 1.5 + Math.random() * 3.5;
+                let oscPhase = Math.random() * Math.PI * 2;
+
+                if (isOscillatingTarget) {
+                    offsetZ = 0.25;
+                    offsetY = (i - (count - 1) / 2) * (scale * 1.5);
+                    offsetX = Math.sin(oscPhase) * sweepRange;
+                } else {
+                    const posAngle = startAngle + (i * (Math.PI * 2 / count)) + (Math.random() * 0.3 - 0.15);
+                    const distFromCenter = 1.0 + (scale * 0.7);
+                    offsetX = Math.cos(posAngle) * distFromCenter;
+                    offsetY = Math.sin(posAngle) * distFromCenter;
+                }
+
+                goodGuyGroup.position.set(offsetX, offsetY, offsetZ);
+                targetGroup.add(goodGuyGroup);
+
+                goodGuyMeshes.push({
+                    mesh: goodGuyGroup,
+                    scale: scale,
+                    radius: 1.1 * scale,
+                    isOscillating: isOscillatingTarget,
+                    oscSpeed: oscSpeed,
+                    oscPhase: oscPhase,
+                    sweepRange: sweepRange,
+                    baseY: offsetY,
+                    offsetZ: offsetZ
+                });
+            }
+
+            const combatStyle = Math.floor(Math.random() * 3);
+            const speedFactor = Math.random() < 0.4 ? (0.6 + Math.random() * 0.6) : (1.6 + Math.random() * 1.8);
+
+            targetGroup.userData = {
+                mainMesh: mainTargetGroup,
+                goodGuyMeshes: goodGuyMeshes,
+                baseYOffset: height - groundY,
+                hoverSpeed: 2 + Math.random() * 2,
+                hoverOffset: Math.random() * Math.PI * 2,
+                behavior: combatStyle,
+                moveDirection: 1,
+                moveSpeed: speedFactor,
+                circleAngle: angle,
+                circleRadius: 8 + Math.random() * 14,
+                circleSpeed: (Math.random() - 0.5) * 1.2,
+                isHit: false,
+                hitTimer: 0,
+                throwTimer: Math.random() * 2.0,
+                throwInterval: 2.2 + Math.random() * 2.0
+            };
+
+            scene.add(targetGroup);
+            targets.push(targetGroup);
+            updateEnemiesRemainingUI();
+        }
+
+        function triggerTargetHit(target) {
+            if (target.userData.isHit) return;
+            target.userData.isHit = true;
+            playTargetHitSound();
+            updateEnemiesRemainingUI();
+
+            target.userData.goodGuyMeshes.forEach(gg => {
+                const worldPos = new THREE.Vector3();
+                const worldQuat = new THREE.Quaternion();
+                gg.mesh.getWorldPosition(worldPos);
+                gg.mesh.getWorldQuaternion(worldQuat);
+
+                target.remove(gg.mesh);
+                scene.add(gg.mesh);
+
+                gg.mesh.position.copy(worldPos);
+                gg.mesh.quaternion.copy(worldQuat);
+
+                spinningGoodGuys.push({
+                    mesh: gg.mesh,
+                    upSpeed: 18 + Math.random() * 8,
+                    spinSpeed: 12 + Math.random() * 8
+                });
+            });
+
+            target.userData.goodGuyMeshes = [];
+        }
+
+        function spawnSmartTracer(startPos, endPos) {
+            const points = [startPos.clone(), endPos.clone()];
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const mat = new THREE.LineBasicMaterial({
+                color: 0x00ffcc,
+                transparent: true,
+                opacity: 1.0,
+                blending: THREE.AdditiveBlending
+            });
+            const line = new THREE.Line(geo, mat);
+            scene.add(line);
+            smartTracers.push({ mesh: line, life: 0.25 });
+        }
+
+        function updateSmartPistolLocks() {
+            lockonLayerEl.innerHTML = '';
+            smartLockedTargets = [];
+
+            if (!isSmartPistolEquipped || isDepletingSmartAmmo || isDead || smartAmmoRemaining <= 0) return;
+
+            const camForward = new THREE.Vector3();
+            camera.getWorldDirection(camForward);
+
+            const candidates = [];
+            for (let t of targets) {
+                if (t.userData.isHit) continue;
+                const worldPos = new THREE.Vector3();
+                t.userData.mainMesh.getWorldPosition(worldPos);
+
+                const toTarget = worldPos.clone().sub(camera.position);
+                const dist = toTarget.length();
+                if (dist > 65) continue;
+
+                const dir = toTarget.normalize();
+                const dot = camForward.dot(dir);
+                if (dot > 0.65) {
+                    const projected = worldPos.clone().project(camera);
+                    if (projected.z < 1) {
+                        const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
+                        const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+                        candidates.push({ target: t, worldPos, screenX, screenY, dot });
+                    }
+                }
+            }
+
+            candidates.sort((a, b) => b.dot - a.dot);
+            const maxLocks = Math.min(SMART_PISTOL_MAX_AMMO, smartAmmoRemaining);
+            smartLockedTargets = candidates.slice(0, maxLocks);
+
+            for (let item of smartLockedTargets) {
+                const reticle = document.createElement('div');
+                reticle.className = 'smart-lock-reticle';
+                reticle.style.left = item.screenX + 'px';
+                reticle.style.top = item.screenY + 'px';
+                lockonLayerEl.appendChild(reticle);
+            }
+        }
+
+        function startSmartPistolDepletionVolley() {
+            if (!isSmartPistolEquipped || isDepletingSmartAmmo) return false;
+            if (smartAmmoRemaining <= 0) return false;
+
+            isSmartPistolEquipped = false;
+            isDepletingSmartAmmo = true;
+            smartVolleyQueue = smartLockedTargets.slice(0, smartAmmoRemaining).map(item => item.target);
+            smartLockedTargets = [];
+            lockonLayerEl.innerHTML = '';
+            smartDepleteTimer = 0;
+
+            updateSmartPistolBadge();
+            return true;
+        }
+
+        function fireSingleSmartShot() {
+            playSmartGunFireSound();
+
+            const muzzlePos = new THREE.Vector3(0.32, -0.22, -0.85).applyMatrix4(camera.matrixWorld);
+            const queuedTarget = smartVolleyQueue.shift();
+
+            if (queuedTarget && !queuedTarget.userData.isHit) {
+                const targetPos = new THREE.Vector3();
+                queuedTarget.userData.mainMesh.getWorldPosition(targetPos);
+                spawnSmartTracer(muzzlePos, targetPos);
+                triggerTargetHit(queuedTarget);
+            } else {
+                const camDir = new THREE.Vector3();
+                camera.getWorldDirection(camDir);
+                const endPos = muzzlePos.clone().addScaledVector(camDir, 28);
+                spawnSmartTracer(muzzlePos, endPos);
+            }
+
+            smartPistolRecoil = 0.08;
+            smartAmmoRemaining = Math.max(0, smartAmmoRemaining - 1);
+            updateSmartAmmoHUD();
+        }
+
+        function updateSmartPistolDepletion(delta) {
+            if (!isDepletingSmartAmmo) return;
+
+            smartDepleteTimer -= delta;
+            if (smartDepleteTimer <= 0 && smartAmmoRemaining > 0) {
+                fireSingleSmartShot();
+                smartDepleteTimer = 0.14;
+            }
+
+            if (smartAmmoRemaining <= 0 && smartDepleteTimer <= -0.12) {
+                swapBackToKnifeAfterSmartPistol();
+            }
+        }
+
+        function isWithinStashRange(worldPos) {
+            const reach = PICKUP_DISTANCE + 0.75;
+            return camera.position.distanceTo(worldPos) <= reach || playerPosition.distanceTo(worldPos) <= reach;
+        }
+
+        function refreshNearbyStorableKnife() {
+            nearbyStorableCandidate = null;
+
+            if (heldKnivesCount >= MAX_KNIVES) {
+                return;
+            }
+
+            for (let i = 0; i < thrownKnives.length; i++) {
+                const tk = thrownKnives[i];
+                const tkWorldPos = new THREE.Vector3();
+                tk.mesh.getWorldPosition(tkWorldPos);
+                if (isWithinStashRange(tkWorldPos)) {
+                    nearbyStorableCandidate = { kind: 'thrown', index: i };
+                    return;
+                }
+            }
+
+            for (let i = 0; i < droppedEnemyKnives.length; i++) {
+                const dk = droppedEnemyKnives[i];
+                const dkWorldPos = new THREE.Vector3();
+                dk.getWorldPosition(dkWorldPos);
+                if (isWithinStashRange(dkWorldPos)) {
+                    nearbyStorableCandidate = { kind: 'dropped', index: i };
+                    return;
+                }
+            }
+        }
+
+        function stashNearbyKnife() {
+            if (heldKnivesCount >= MAX_KNIVES) return;
+            refreshNearbyStorableKnife();
+            if (!nearbyStorableCandidate) return;
+
+            if (nearbyStorableCandidate.kind === 'thrown') {
+                const tk = thrownKnives[nearbyStorableCandidate.index];
+                if (tk && tk.mesh) {
+                    if (tk.mesh.parent) tk.mesh.parent.remove(tk.mesh);
+                    scene.remove(tk.mesh);
+                }
+                thrownKnives.splice(nearbyStorableCandidate.index, 1);
+            } else if (nearbyStorableCandidate.kind === 'dropped') {
+                const dk = droppedEnemyKnives[nearbyStorableCandidate.index];
+                if (dk) {
+                    if (dk.parent) dk.parent.remove(dk);
+                    scene.remove(dk);
+                }
+                droppedEnemyKnives.splice(nearbyStorableCandidate.index, 1);
+            }
+
+            heldKnivesCount = Math.min(MAX_KNIVES, heldKnivesCount + 1);
+            updateKnifeInventoryUI();
+            if (!isSmartPistolEquipped && !isDepletingSmartAmmo) {
+                equipHeldKnifeModel();
+            }
+
+            refreshNearbyStorableKnife();
+        }
+
+        function triggerJump() {
+            let currentGroundY = getTerrainHeight(playerPosition.x, playerPosition.z);
+
+            if (!isJumping && playerPosition.y <= currentGroundY + PLAYER_HEIGHT + 0.1) {
+                playerVerticalVelocity = JUMP_FORCE;
+                isJumping = true;
+            }
+        }
+
+        function handleInteractClick() {
+            if (isHoldingKnife && closestTargetInRange && heldKnivesCount > 0 && !isSmartPistolEquipped && !isDepletingSmartAmmo) {
+                performMelee(closestTargetInRange);
+            } else {
+                interactWithKnife();
+            }
+        }
+
+        function performMelee(target) {
+            if (!target || target.userData.isHit || !isHoldingKnife || heldKnivesCount <= 0) return;
+
+            const mainPos = new THREE.Vector3();
+            target.userData.mainMesh.getWorldPosition(mainPos);
+
+            for (let gg of target.userData.goodGuyMeshes) {
+                const goodGuyPos = new THREE.Vector3();
+                gg.mesh.getWorldPosition(goodGuyPos);
+
+                const distToGoodGuy = playerPosition.distanceTo(goodGuyPos);
+                if (distToGoodGuy < playerPosition.distanceTo(mainPos)) {
+                    halfHearts = 0;
+                    renderHeartsUI();
+                    triggerPitchBlackState();
+                    return;
+                }
+            }
+
+            playKnifeWhooshSound(false);
+            triggerTargetHit(target);
+
+            const pinnedKnife = createKnifeModel(false);
+            scene.add(pinnedKnife);
+            pinnedKnife.position.copy(target.worldToLocal(playerPosition.clone().add(new THREE.Vector3(0, 0.2, 0))));
+            pinnedKnife.scale.set(1.2, 1.2, 1.2).divide(target.scale);
+            pinnedKnife.rotation.set(0, 0, 0);
+            pinnedKnife.rotateX(Math.PI / 2);
+
+            thrownKnives.push({
+                mesh: pinnedKnife,
+                velocity: new THREE.Vector3(),
+                spinAxis: new THREE.Vector3(0, 1, 0),
+                spinSpeed: 0,
+                isStuck: true,
+                hasLanded: true,
+                flightTime: 0,
+                stuckTarget: target
+            });
+
+            heldKnivesCount = Math.max(0, heldKnivesCount - 1);
+            updateKnifeInventoryUI();
+
+            if (heldKnivesCount > 0) {
+                equipHeldKnifeModel();
+            } else {
+                isHoldingKnife = false;
+                if (knife) knife.visible = false;
+            }
+        }
+
+        function interactWithKnife() {
+            if (isDepletingSmartAmmo) return;
+
+            if (isSmartPistolEquipped) {
+                if (smartAmmoRemaining > 0) {
+                    startSmartPistolDepletionVolley();
+                }
+                return;
+            }
+
+            if (isHoldingKnife && heldKnivesCount > 0) {
+                playKnifeWhooshSound(false);
+
+                const cameraDirection = new THREE.Vector3();
+                camera.getWorldDirection(cameraDirection);
+
+                const timeSinceSprintTap = (performance.now() - lastSprintTapTime) / 1000;
+                const recentSprintBonus = (isSprinting || timeSinceSprintTap <= 1.8) ? 2.25 : 1.0;
+
+                const thrownMesh = createKnifeModel(false);
+                thrownMesh.position.copy(camera.position).add(cameraDirection.clone().multiplyScalar(1));
+                thrownMesh.quaternion.copy(camera.quaternion);
+                scene.add(thrownMesh);
+
+                const vel = cameraDirection.clone().multiplyScalar(BASE_THROW_FORCE * recentSprintBonus);
+                vel.y += 2.5 * recentSprintBonus;
+
+                const axis = new THREE.Vector3(0, 1, 0).cross(cameraDirection).normalize();
+                if (axis.lengthSq() < 0.0001) axis.set(1, 0, 0);
+
+                thrownKnives.push({
+                    mesh: thrownMesh,
+                    velocity: vel,
+                    spinAxis: axis,
+                    spinSpeed: 16.0 * recentSprintBonus,
+                    isStuck: false,
+                    hasLanded: false,
+                    flightTime: 0,
+                    stuckTarget: null
+                });
+
+                heldKnivesCount = Math.max(0, heldKnivesCount - 1);
+                updateKnifeInventoryUI();
+
+                if (heldKnivesCount > 0) {
+                    equipHeldKnifeModel();
+                } else {
+                    isHoldingKnife = false;
+                    if (knife) knife.visible = false;
+                }
+            } else {
+                for (let i = thrownKnives.length - 1; i >= 0; i--) {
+                    const tk = thrownKnives[i];
+                    const tkWorldPos = new THREE.Vector3();
+                    tk.mesh.getWorldPosition(tkWorldPos);
+
+                    if (isWithinStashRange(tkWorldPos)) {
+                        if (tk.mesh.parent) tk.mesh.parent.remove(tk.mesh);
+                        scene.remove(tk.mesh);
+                        thrownKnives.splice(i, 1);
+                        heldKnivesCount = Math.min(MAX_KNIVES, heldKnivesCount + 1);
+                        updateKnifeInventoryUI();
+                        equipHeldKnifeModel();
+                        return;
+                    }
+                }
+
+                for (let i = droppedEnemyKnives.length - 1; i >= 0; i--) {
+                    const dk = droppedEnemyKnives[i];
+                    const dkWorldPos = new THREE.Vector3();
+                    dk.getWorldPosition(dkWorldPos);
+                    if (isWithinStashRange(dkWorldPos)) {
+                        if (dk.parent) dk.parent.remove(dk);
+                        scene.remove(dk);
+                        droppedEnemyKnives.splice(i, 1);
+                        heldKnivesCount = Math.min(MAX_KNIVES, heldKnivesCount + 1);
+                        updateKnifeInventoryUI();
+                        equipHeldKnifeModel();
+                        break;
+                    }
+                }
+            }
+        }
+
+        function takeDamage() {
+            if (isDead) return;
+
+            halfHearts = Math.max(0, halfHearts - 1);
+            renderHeartsUI();
+
+            damageFlashEl.style.background = 'rgba(231, 76, 60, 0.4)';
+            setTimeout(() => {
+                damageFlashEl.style.background = 'rgba(231, 76, 60, 0)';
+            }, 150);
+
+            if (halfHearts <= 0) {
+                triggerWastedState();
+            }
+        }
+
+        function triggerWastedState() {
+            isDead = true;
+            if (document.pointerLockElement) document.exitPointerLock();
+            moveInput = { x: 0, y: 0 };
+            isSmartPistolEquipped = false;
+            isDepletingSmartAmmo = false;
+            smartVolleyQueue = [];
+            if (smartPistolMesh) smartPistolMesh.visible = false;
+            smartLockedTargets = [];
+            lockonLayerEl.innerHTML = '';
+            updateSmartAmmoHUD();
+            wastedScreen.style.opacity = '1';
+            wastedScreen.style.animation = 'redBlueFlash 0.6s steps(1, end) infinite';
+            wastedText.style.animation = 'pulseEffect 1.8s ease-in-out infinite';
+            tryAgainWastedContainer.style.display = 'flex';
+            syncToggleUIState();
+        }
+
+        function triggerPitchBlackState() {
+            isDead = true;
+            if (document.pointerLockElement) document.exitPointerLock();
+            moveInput = { x: 0, y: 0 };
+            isSmartPistolEquipped = false;
+            isDepletingSmartAmmo = false;
+            smartVolleyQueue = [];
+            if (smartPistolMesh) smartPistolMesh.visible = false;
+            smartLockedTargets = [];
+            lockonLayerEl.innerHTML = '';
+            updateSmartAmmoHUD();
+            pitchBlackScreen.style.display = 'block';
+            tryAgainBlackContainer.style.display = 'flex';
+            syncToggleUIState();
+        }
+
+        function spawnEnemyKnife(fromTarget) {
+            const eKnife = createKnifeModel(true);
+            eKnife.position.copy(fromTarget.position);
+
+            const targetPos = playerPosition.clone();
+            targetPos.y = playerPosition.y;
+
+            const throwSpread = (Math.random() - 0.5) * 2.8;
+            targetPos.x += throwSpread;
+            targetPos.z += (Math.random() - 0.5) * 2.8;
+
+            const throwDir = targetPos.clone().sub(fromTarget.position).normalize();
+
+            let baseThrowSpeed = 21 + Math.random() * 7;
+            let speedMultiplier = 1.0;
+            if (fromTarget.userData.moveSpeed >= 2.0) {
+                speedMultiplier = 1.0 + Math.min(0.6, (fromTarget.userData.moveSpeed - 2.0) * 0.3);
+            }
+            const enemyThrowSpeed = baseThrowSpeed * speedMultiplier;
+
+            const velocity = throwDir.clone().multiplyScalar(enemyThrowSpeed);
+            velocity.y += (3.5 + Math.random() * 1.3) * speedMultiplier;
+
+            const axis = new THREE.Vector3(0, 1, 0).cross(throwDir).normalize();
+            eKnife.lookAt(targetPos);
+
+            scene.add(eKnife);
+            enemyKnives.push({
+                mesh: eKnife,
+                velocity: velocity,
+                spinAxis: axis,
+                spinSpeed: (20.0 + Math.random() * 8.0) * speedMultiplier,
+                whooshPlayed: false
+            });
+        }
+
+        // Standard HTML5 Gamepad Processing Loop (Nintendo Switch Controller)
+        function pollGamepad(delta) {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            let gp = null;
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    gp = gamepads[i];
+                    break;
+                }
+            }
+
+            if (!gp) return;
+
+            const applyDeadzone = (val, threshold = 0.15) => {
+                return Math.abs(val) < threshold ? 0 : (val > 0 ? (val - threshold) / (1 - threshold) : (val + threshold) / (1 - threshold));
+            };
+
+            const hasButton = (idx) => gp.buttons[idx] && gp.buttons[idx].pressed;
+            const hasAxisValue = (axisIdx, targetVal) => gp.axes[axisIdx] !== undefined && Math.abs(gp.axes[axisIdx] - targetVal) < 0.15;
+            const hasAxisRange = (axisIdx, direction) => {
+                if (gp.axes[axisIdx] === undefined) return false;
+                return direction === 'left' ? gp.axes[axisIdx] < -0.5 : gp.axes[axisIdx] > 0.5;
+            };
+
+            const dpadLeftPressed = hasButton(14) || hasAxisRange(6, 'left') || hasAxisRange(4, 'left') || hasAxisValue(9, -0.43) || hasAxisValue(9, -0.71);
+            if (dpadLeftPressed && !prevGamepadButtonStates['dpad_left']) {
+                isNightMode = !isNightMode;
+                syncToggleUIState();
+            }
+            prevGamepadButtonStates['dpad_left'] = dpadLeftPressed;
+
+            const dpadRightPressed = hasButton(15) || hasAxisRange(6, 'right') || hasAxisRange(4, 'right') || hasAxisValue(9, 0.43) || hasAxisValue(9, 0.71);
+            if (dpadRightPressed && !prevGamepadButtonStates['dpad_right']) {
+                isHillsMode = !isHillsMode;
+                rebuildTerrains();
+                syncToggleUIState();
+            }
+            prevGamepadButtonStates['dpad_right'] = dpadRightPressed;
+
+            const bButtonPressed = gp.buttons[1] && gp.buttons[1].pressed;
+            const rbButtonPressed = gp.buttons[5] && gp.buttons[5].pressed;
+            const menuInteractPressed = bButtonPressed || rbButtonPressed;
+
+            if (!isGameStarted) {
+                if (menuInteractPressed && !prevGamepadButtonStates['menu_interact']) {
+                    ensureAudioContext();
+                    instructions.style.display = 'none';
+                    isGameStarted = true;
+                    restartGame();
+                    document.body.requestPointerLock();
+                }
+                prevGamepadButtonStates['menu_interact'] = menuInteractPressed;
+                return;
+            }
+
+            if (isDead) {
+                if (menuInteractPressed && !prevGamepadButtonStates['menu_interact']) {
+                    ensureAudioContext();
+                    restartGame();
+                    document.body.requestPointerLock();
+                }
+                prevGamepadButtonStates['menu_interact'] = menuInteractPressed;
+                return;
+            }
+
+            // --- Right Analog Stick: Camera Aiming ---
+            const rx = applyDeadzone(gp.axes[2] !== undefined ? gp.axes[2] : 0);
+            let rawRy = gp.axes[3];
+            if (rawRy === undefined || Math.abs(rawRy) < 0.05) {
+                if (gp.axes[5] !== undefined) rawRy = gp.axes[5];
+            }
+            const ry = applyDeadzone(rawRy || 0);
+
+            const stickLookSpeed = 2.2;
+            cameraYaw -= rx * stickLookSpeed * delta;
+            cameraPitch -= ry * stickLookSpeed * delta;
+            cameraPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, cameraPitch));
+
+            // --- Left Analog Stick: Player Movement ---
+            let lx = applyDeadzone(gp.axes[0]);
+            let lz = applyDeadzone(gp.axes[1]);
+
+            if (Math.abs(lx) > 0.05 || Math.abs(lz) > 0.05) {
+                moveInput.x = -lx;
+                moveInput.y = lz;
+            }
+
+            // --- Left Shoulder Button (LB / Button 4): Sprint ---
+            const lbPressed = gp.buttons[4] && gp.buttons[4].pressed;
+            if (lbPressed && !isSprinting && stamina > 5) {
+                lastSprintTapTime = performance.now();
+            }
+            if (lbPressed) isSprinting = stamina > 5;
+
+            // --- Face Button A (Button 0): Jump ---
+            const aButtonPressed = gp.buttons[0] && gp.buttons[0].pressed;
+            if (aButtonPressed && !prevGamepadButtonStates[0]) {
+                triggerJump();
+            }
+            prevGamepadButtonStates[0] = aButtonPressed;
+
+            // --- Face Button X / Y (Buttons 2 & 3): Toggle Glider / Free Fall (Air) OR Stash Knife (Ground) ---
+            const xButtonPressed = gp.buttons[2] && gp.buttons[2].pressed;
+            const yButtonPressed = gp.buttons[3] && gp.buttons[3].pressed;
+            const glideOrStashPressed = xButtonPressed || yButtonPressed;
+
+            if (glideOrStashPressed && !prevGamepadButtonStates['glide_or_stash']) {
+                handleGlideOrStashAction();
+            }
+            prevGamepadButtonStates['glide_or_stash'] = glideOrStashPressed;
+
+            // --- Right Trigger ZR (Button 7, under RB): Swap Weapon (Knife <-> Smart Pistol) ---
+            const zrButtonPressed = (gp.buttons[7] && gp.buttons[7].pressed) || (gp.buttons[7] && gp.buttons[7].value > 0.5);
+            if (zrButtonPressed && !prevGamepadButtonStates['weapon_swap']) {
+                toggleSmartPistolAndKnife();
+            }
+            prevGamepadButtonStates['weapon_swap'] = zrButtonPressed;
+
+            // --- Face Button B (Button 1) or RB (Button 5): Throw / Pick Up / Melee / Fire ---
+            const interactPressed = menuInteractPressed;
+            if (interactPressed && !prevGamepadButtonStates['interact']) {
+                handleInteractClick();
+            }
+            prevGamepadButtonStates['interact'] = interactPressed;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            prevTime = time;
+
+            if (isGameStarted && !isDead) {
+                updateKeyboardInput();
+            }
+            pollGamepad(delta);
+
+            updateNightSkyAnimations(delta, time);
+
+            if (gliderPickupMesh && gliderPickupMesh.visible) {
+                gliderPickupMesh.children[0].rotation.y += 1.2 * delta;
+                gliderPickupMesh.children[0].position.y = 0.8 + Math.sin(time * 0.003) * 0.15;
+            }
+            if (nextGliderPickupMesh && nextGliderPickupMesh.visible) {
+                nextGliderPickupMesh.children[0].rotation.y += 1.2 * delta;
+                nextGliderPickupMesh.children[0].position.y = 0.8 + Math.sin(time * 0.003) * 0.15;
+            }
+
+            if (gliderAmmoReloadTimer > 0) {
+                gliderAmmoReloadTimer = Math.max(0, gliderAmmoReloadTimer - delta);
+                const mountedPistol = activeGliderMesh && activeGliderMesh.userData.mountedPistol;
+                if (mountedPistol) {
+                    const pulse = 1.35 + Math.sin((1 - gliderAmmoReloadTimer / GLIDER_AMMO_RELOAD_DURATION) * Math.PI * 4) * 0.25;
+                    mountedPistol.scale.set(pulse, pulse, pulse);
+                }
+                if (gliderAmmoReloadTimer === 0 && mountedPistol) {
+                    mountedPistol.scale.set(1.35, 1.35, 1.35);
+                }
+            }
+
+            if (currentHealthCrateMesh && currentHealthCrateActive) {
+                currentHealthCrateMesh.rotation.y += 1.4 * delta;
+                currentHealthCrateMesh.children[0].position.y = 0.52 + Math.sin(time * 0.004) * 0.08;
+            }
+            if (nextHealthCrateMesh && nextHealthCrateActive) {
+                nextHealthCrateMesh.rotation.y += 1.4 * delta;
+                nextHealthCrateMesh.children[0].position.y = 0.52 + Math.sin(time * 0.004) * 0.08;
+            }
+
+            for (let i = smartTracers.length - 1; i >= 0; i--) {
+                const tr = smartTracers[i];
+                tr.life -= delta;
+                tr.mesh.material.opacity = Math.max(0, tr.life / 0.25);
+                if (tr.life <= 0) {
+                    disposeMesh(tr.mesh);
+                    smartTracers.splice(i, 1);
+                }
+            }
+
+            if (isGameStarted && !isDead) {
+                if (!hasGlider) {
+                    if (gliderPickupMesh && gliderPickupMesh.visible && playerPosition.distanceTo(currentGliderPickupPos) < 3.0) {
+                        hasGlider = true;
+                        gliderPickupMesh.visible = false;
+                        gliderStatusEl.textContent = "EQUIPPED";
+                        gliderStatusEl.style.color = "#2ecc71";
+                        triggerGliderAmmoResupplyAnimation();
+                    } else if (nextGliderPickupMesh && nextGliderPickupMesh.visible && playerPosition.distanceTo(nextGliderPickupPos) < 3.0) {
+                        hasGlider = true;
+                        nextGliderPickupMesh.visible = false;
+                        gliderStatusEl.textContent = "EQUIPPED";
+                        gliderStatusEl.style.color = "#2ecc71";
+                        triggerGliderAmmoResupplyAnimation();
+                    }
+                }
+
+                if (currentPlatformIndex > 0) {
+                    targetSpawnTimer += delta;
+                    const spawnInterval = 2.2;
+
+                    if (targetSpawnTimer >= spawnInterval && totalEnemiesSpawnedThisStage < targetTotalEnemiesForThisStage) {
+                        targetSpawnTimer = 0;
+                        spawnTarget();
+                    }
+                }
+
+                const isMoving = Math.abs(moveInput.x) > 0.05 || Math.abs(moveInput.y) > 0.05;
+                if (isGliding) {
+                    stamina = Math.max(0, stamina - GLIDER_STAMINA_DRAIN * delta);
+                    staminaRechargeTimer = 0;
+                    staminaContainer.style.opacity = '1';
+                    if (stamina <= 0) {
+                        isGliding = false;
+                        isFreeFalling = true;
+                        activeGliderMesh.visible = false;
+                    }
+                } else if (isSprinting && isMoving && stamina > 0) {
+                    stamina = Math.max(0, stamina - STAMINA_DRAIN_RATE * delta);
+                    staminaRechargeTimer = 0;
+                    staminaContainer.style.opacity = '1';
+                    if (stamina <= 0) {
+                        isSprinting = false;
+                    }
+                } else {
+                    staminaRechargeTimer += delta;
+                    if (staminaRechargeTimer >= STAMINA_RECHARGE_DELAY && stamina < maxStamina) {
+                        stamina = Math.min(maxStamina, stamina + STAMINA_RECHARGE_RATE * delta);
+                    }
+                }
+
+                if (stamina >= maxStamina && !isSprinting && !isGliding) {
+                    staminaContainer.style.opacity = '0';
+                } else {
+                    staminaContainer.style.opacity = '1';
+                }
+                drawStaminaWheel();
+
+                closestTargetInRange = null;
+                if (isHoldingKnife && heldKnivesCount > 0) {
+                    let minDistance = Infinity;
+                    for (let t of targets) {
+                        if (!t.userData.isHit) {
+                            const dist = playerPosition.distanceTo(t.position);
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                closestTargetInRange = t;
+                            }
+                        }
+                    }
+
+                    if (minDistance > MELEE_RANGE) {
+                        closestTargetInRange = null;
+                    }
+                }
+
+                for (let i = spinningGoodGuys.length - 1; i >= 0; i--) {
+                    const sg = spinningGoodGuys[i];
+                    sg.mesh.position.y += sg.upSpeed * delta;
+                    sg.mesh.rotation.y += sg.spinSpeed * delta;
+                    sg.mesh.rotation.z += (sg.spinSpeed * 0.5) * delta;
+
+                    if (sg.mesh.position.y > currentPlatformOffset.y + 100) {
+                        scene.remove(sg.mesh);
+                        spinningGoodGuys.splice(i, 1);
+                    }
+                }
+
+                const allObsForMovement = obstacles.concat(nextObstacles);
+
+                for (let i = targets.length - 1; i >= 0; i--) {
+                    const t = targets[i];
+
+                    if (t.userData.isHit) {
+                        t.userData.hitTimer += delta;
+                        let scaleStep = 1.0 - (delta / 1.0);
+                        t.userData.mainMesh.scale.multiplyScalar(Math.max(0, scaleStep));
+
+                        for (let tk of thrownKnives) {
+                            if (tk.isStuck && tk.stuckTarget === t) {
+                                tk.mesh.scale.set(1.2, 1.2, 1.2).divide(t.userData.mainMesh.scale);
+                            }
+                        }
+
+                        if (t.userData.hitTimer >= 1.0) {
+                            for (let tk of thrownKnives) {
+                                if (tk.isStuck && tk.stuckTarget === t) {
+                                    tk.isStuck = false;
+                                    tk.hasLanded = true;
+                                    tk.stuckTarget = null;
+                                    scene.attach(tk.mesh);
+                                    tk.mesh.scale.set(1.2, 1.2, 1.2);
+                                    tk.velocity.set(0, -2, 0);
+                                }
+                            }
+                            scene.remove(t);
+                            targets.splice(i, 1);
+                            updateEnemiesRemainingUI();
+                            continue;
+                        }
+                    } else {
+                        const targetGroundY = getTerrainHeight(t.position.x, t.position.z);
+                        t.position.y = targetGroundY + t.userData.baseYOffset + Math.sin(time * 0.002 * t.userData.hoverSpeed + t.userData.hoverOffset) * 0.3;
+
+                        if (t.userData.goodGuyMeshes) {
+                            for (let gg of t.userData.goodGuyMeshes) {
+                                if (gg.isOscillating) {
+                                    const oscX = Math.sin((time * 0.001 * gg.oscSpeed) + gg.oscPhase) * gg.sweepRange;
+                                    gg.mesh.position.set(oscX, gg.baseY, gg.offsetZ);
+                                }
+                            }
+                        }
+
+                        let candX = t.position.x;
+                        let candZ = t.position.z;
+
+                        if (t.userData.behavior === 1) {
+                            const dirToPlayer = new THREE.Vector3().subVectors(playerPosition, t.position);
+                            dirToPlayer.y = 0;
+                            dirToPlayer.normalize();
+
+                            if (t.position.distanceTo(playerPosition) > 4.0) {
+                                candX += dirToPlayer.x * t.userData.moveSpeed * delta;
+                                candZ += dirToPlayer.z * t.userData.moveSpeed * delta;
+                            }
+                        }
+                        else if (t.userData.behavior === 2) {
+                            t.userData.circleAngle += t.userData.circleSpeed * delta;
+                            candX = playerPosition.x + Math.sin(t.userData.circleAngle) * t.userData.circleRadius;
+                            candZ = playerPosition.z - Math.cos(t.userData.circleAngle) * t.userData.circleRadius;
+                        }
+                        else if (t.userData.behavior === 0) {
+                            const dirToPlayer = new THREE.Vector3().subVectors(playerPosition, t.position);
+                            dirToPlayer.y = 0;
+                            dirToPlayer.normalize();
+
+                            candX += dirToPlayer.x * t.userData.moveDirection * t.userData.moveSpeed * delta;
+                            candZ += dirToPlayer.z * t.userData.moveDirection * t.userData.moveSpeed * delta;
+                            const distToPlayer = t.position.distanceTo(playerPosition);
+                            if (distToPlayer < 7 || distToPlayer > 30) {
+                                t.userData.moveDirection *= -1;
+                            }
+                        }
+
+                        let blockedByTree = false;
+                        for (let obs of allObsForMovement) {
+                            if (Math.hypot(candX - obs.mesh.position.x, candZ - obs.mesh.position.z) < obs.radius + 0.75) {
+                                blockedByTree = true;
+                                break;
+                            }
+                        }
+
+                        if (!blockedByTree) {
+                            t.position.x = candX;
+                            t.position.z = candZ;
+                        } else if (t.userData.behavior === 0) {
+                            t.userData.moveDirection *= -1;
+                        }
+
+                        t.lookAt(playerPosition.x, t.position.y, playerPosition.z);
+
+                        t.userData.throwTimer += delta;
+                        if (t.userData.throwTimer >= t.userData.throwInterval) {
+                            t.userData.throwTimer = 0;
+                            t.userData.throwInterval = 2.2 + Math.random() * 2.0;
+                            spawnEnemyKnife(t);
+                        }
+                    }
+                }
+
+                for (let i = enemyKnives.length - 1; i >= 0; i--) {
+                    const ek = enemyKnives[i];
+                    ek.velocity.y -= GRAVITY * delta;
+                    ek.mesh.position.addScaledVector(ek.velocity, delta);
+                    ek.mesh.rotateOnWorldAxis(ek.spinAxis, ek.spinSpeed * delta);
+
+                    const distToPlayer = ek.mesh.position.distanceTo(playerPosition);
+                    if (!ek.whooshPlayed && distToPlayer < 7.5 && Math.abs(ek.mesh.position.y - playerPosition.y) < 4.5) {
+                        ek.whooshPlayed = true;
+                        playKnifeWhooshSound(true);
+                    }
+
+                    if (distToPlayer < 1.3 && Math.abs(ek.mesh.position.y - playerPosition.y) < 1.2) {
+                        takeDamage();
+                        scene.remove(ek.mesh);
+                        enemyKnives.splice(i, 1);
+                        continue;
+                    }
+
+                    const knifeGroundY = getTerrainHeight(ek.mesh.position.x, ek.mesh.position.z);
+                    if (ek.mesh.position.y <= knifeGroundY + 0.35) {
+                        ek.mesh.position.y = knifeGroundY + 0.35;
+                        ek.mesh.rotation.set(Math.PI / 2, 0, 0);
+
+                        droppedEnemyKnives.push(ek.mesh);
+                        if (droppedEnemyKnives.length > 20) {
+                            const oldKnife = droppedEnemyKnives.shift();
+                            scene.remove(oldKnife);
+                        }
+
+                        enemyKnives.splice(i, 1);
+                        continue;
+                    }
+
+                    if (ek.mesh.position.distanceTo(playerPosition) > 120) {
+                        scene.remove(ek.mesh);
+                        enemyKnives.splice(i, 1);
+                    }
+                }
+
+                camera.rotation.x = cameraPitch;
+                camera.rotation.y = cameraYaw;
+
+                if (isMoving) {
+                    let currentSpeedFactor = 6.0;
+                    if (isGliding) currentSpeedFactor = 14.0;
+                    else if (isSprinting && stamina > 0) currentSpeedFactor = 11.0;
+
+                    const moveSpeed = currentSpeedFactor * delta;
+                    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+                    const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+
+                    let nextX = playerPosition.x - moveInput.y * moveSpeed * forward.x - moveInput.x * moveSpeed * side.x;
+                    let nextZ = playerPosition.z - moveInput.y * moveSpeed * forward.z - moveInput.x * moveSpeed * side.z;
+
+                    let enemiesLeft = getEnemiesRemaining();
+                    if (enemiesLeft > 0) {
+                        const maxBoundZ = currentPlatformOffset.z + 92;
+                        const minBoundZ = currentPlatformOffset.z - 92;
+                        const maxBoundX = currentPlatformOffset.x + 92;
+                        const minBoundX = currentPlatformOffset.x - 92;
+
+                        if (nextZ > maxBoundZ || nextZ < minBoundZ || nextX > maxBoundX || nextX < minBoundX) {
+                            showAreaExitWarning();
+                            if (nextZ > maxBoundZ || nextZ < minBoundZ) nextZ = playerPosition.z;
+                            if (nextX > maxBoundX || nextX < minBoundX) nextX = playerPosition.x;
+                        }
+                    }
+
+                    let collided = false;
+                    for (let obs of allObsForMovement) {
+                        const dist = Math.hypot(nextX - obs.mesh.position.x, nextZ - obs.mesh.position.z);
+                        if (dist < obs.radius + 0.4) {
+                            collided = true;
+                            break;
+                        }
+                    }
+
+                    if (!collided) {
+                        playerPosition.x = nextX;
+                        playerPosition.z = nextZ;
+                    }
+                }
+
+                let currentGroundY = getTerrainHeight(playerPosition.x, playerPosition.z);
+                const isGrounded = (!isJumping && playerPosition.y <= currentGroundY + PLAYER_HEIGHT + 0.12);
+
+                if (isGrounded) {
+                    if (currentHealthCrateActive && currentHealthCrateMesh) {
+                        const distCenter = Math.hypot(
+                            playerPosition.x - currentHealthCratePos.x,
+                            playerPosition.z - currentHealthCratePos.z
+                        );
+                        if (distCenter <= 3.5) {
+                            currentHealthCrateActive = false;
+                            currentHealthCrateMesh.visible = false;
+                            restoreFullHealthFromCrate();
+                        }
+                    }
+                    if (nextHealthCrateActive && nextHealthCrateMesh) {
+                        const distNextCenter = Math.hypot(
+                            playerPosition.x - nextHealthCratePos.x,
+                            playerPosition.z - nextHealthCratePos.z
+                        );
+                        if (distNextCenter <= 3.5) {
+                            nextHealthCrateActive = false;
+                            nextHealthCrateMesh.visible = false;
+                            restoreFullHealthFromCrate();
+                        }
+                    }
+                }
+
+                if (hasGlider && !isGliding && !isFreeFalling && playerPosition.y > currentGroundY + PLAYER_HEIGHT + 0.8 && stamina > 0 && playerVerticalVelocity <= 0) {
+                    isGliding = true;
+                    activeGliderMesh.visible = true;
+                    triggerGliderAmmoResupplyAnimation();
+                }
+
+                if (isGliding) {
+                    const GLIDE_TERMINAL_FALL_SPEED = -1.8;
+                    playerVerticalVelocity = THREE.MathUtils.lerp(playerVerticalVelocity, GLIDE_TERMINAL_FALL_SPEED, delta * 6.0);
+                    playerPosition.y += playerVerticalVelocity * delta;
+
+                    const gliderOffset = new THREE.Vector3(0, 0.45, -0.6);
+                    gliderOffset.applyQuaternion(camera.quaternion);
+                    activeGliderMesh.position.copy(camera.position).add(gliderOffset);
+                    activeGliderMesh.rotation.copy(camera.rotation);
+
+                    if (playerPosition.y <= currentGroundY + PLAYER_HEIGHT) {
+                        playerPosition.y = currentGroundY + PLAYER_HEIGHT;
+                        playerVerticalVelocity = 0;
+                        isJumping = false;
+                        isGliding = false;
+                        isFreeFalling = false;
+                        activeGliderMesh.visible = false;
+
+                        let nextRelZ = playerPosition.z - nextPlatformOffset.z;
+                        if (Math.abs(nextRelZ) <= 100) {
+                            if (getEnemiesRemaining() === 0) {
+                                triggerRecursiveTerrainTransition();
+                            } else {
+                                showAreaExitWarning();
+                            }
+                        }
+                    }
+                } else if (isFreeFalling) {
+                    playerVerticalVelocity -= GRAVITY * 1.2 * delta;
+                    playerPosition.y += playerVerticalVelocity * delta;
+
+                    playerPosition.x += glideForwardVelocity.x * 0.4 * delta;
+                    playerPosition.z += glideForwardVelocity.z * 0.4 * delta;
+
+                    if (playerPosition.y <= currentGroundY + PLAYER_HEIGHT) {
+                        playerPosition.y = currentGroundY + PLAYER_HEIGHT;
+                        playerVerticalVelocity = 0;
+                        isJumping = false;
+                        isGliding = false;
+                        isFreeFalling = false;
+                        activeGliderMesh.visible = false;
+
+                        let nextRelZ = playerPosition.z - nextPlatformOffset.z;
+                        if (Math.abs(nextRelZ) <= 100) {
+                            if (getEnemiesRemaining() === 0) {
+                                triggerRecursiveTerrainTransition();
+                            } else {
+                                showAreaExitWarning();
+                            }
+                        }
+                    }
+                } else if (isJumping || playerPosition.y > currentGroundY + PLAYER_HEIGHT) {
+                    playerVerticalVelocity -= GRAVITY * 1.2 * delta;
+                    playerPosition.y += playerVerticalVelocity * delta;
+
+                    if (playerPosition.y <= currentGroundY + PLAYER_HEIGHT) {
+                        playerPosition.y = currentGroundY + PLAYER_HEIGHT;
+                        playerVerticalVelocity = 0;
+                        isJumping = false;
+
+                        let nextRelZ = playerPosition.z - nextPlatformOffset.z;
+                        if (Math.abs(nextRelZ) <= 100) {
+                            if (getEnemiesRemaining() === 0) {
+                                triggerRecursiveTerrainTransition();
+                            } else {
+                                showAreaExitWarning();
+                            }
+                        }
+                    }
+                } else {
+                    playerPosition.y = currentGroundY + PLAYER_HEIGHT;
+                }
+
+                if (playerPosition.y < currentPlatformOffset.y - 120) {
+                    triggerWastedState();
+                }
+
+                camera.position.copy(playerPosition);
+                camera.updateMatrixWorld();
+
+                updateSmartPistolLocks();
+                updateSmartPistolDepletion(delta);
+                refreshNearbyStorableKnife();
+
+                if (isNightMode) {
+                    flashlight.position.copy(camera.position);
+                    const camDir = new THREE.Vector3();
+                    camera.getWorldDirection(camDir);
+                    flashlight.target.position.copy(camera.position).add(camDir.multiplyScalar(20));
+                }
+
+                if (smartPistolMesh && (isSmartPistolEquipped || isDepletingSmartAmmo)) {
+                    smartPistolRecoil = Math.max(0, smartPistolRecoil - delta * 0.45);
+                    const pistolOffset = new THREE.Vector3(0.34, -0.26, -0.68 + smartPistolRecoil);
+                    pistolOffset.applyQuaternion(camera.quaternion);
+                    smartPistolMesh.position.copy(camera.position).add(pistolOffset);
+                    smartPistolMesh.rotation.copy(camera.rotation);
+                    smartPistolMesh.rotateX(smartPistolRecoil * 2.2);
+                    smartPistolMesh.visible = true;
+                    if (knife) knife.visible = false;
+                } else {
+                    if (smartPistolMesh) smartPistolMesh.visible = false;
+                    if (isHoldingKnife && heldKnivesCount > 0) {
+                        knife.visible = true;
+                        const holdOffset = new THREE.Vector3(0.35, -0.35, -0.8);
+                        holdOffset.applyQuaternion(camera.quaternion);
+                        knife.position.copy(camera.position).add(holdOffset);
+                        knife.rotation.copy(camera.rotation);
+                        knife.rotateX(Math.PI / 2);
+                    } else if (knife) {
+                        knife.visible = false;
+                    }
+                }
+
+                for (let idx = thrownKnives.length - 1; idx >= 0; idx--) {
+                    const tk = thrownKnives[idx];
+                    if (tk.isStuck || tk.hasLanded) continue;
+
+                    tk.flightTime += delta;
+                    tk.velocity.y -= GRAVITY * delta;
+                    tk.mesh.position.x += tk.velocity.x * delta;
+                    tk.mesh.position.y += tk.velocity.y * delta;
+                    tk.mesh.position.z += tk.velocity.z * delta;
+
+                    tk.mesh.rotateOnWorldAxis(tk.spinAxis, tk.spinSpeed * delta);
+
+                    let stuckThisFrame = false;
+                    if (tk.flightTime > 0.04) {
+                        for (let i = 0; i < targets.length; i++) {
+                            const t = targets[i];
+                            if (!t.userData.isHit) {
+                                let hitGoodGuy = false;
+
+                                for (let gg of t.userData.goodGuyMeshes) {
+                                    const goodGuyWorldPos = new THREE.Vector3();
+                                    gg.mesh.getWorldPosition(goodGuyWorldPos);
+
+                                    if (tk.mesh.position.distanceTo(goodGuyWorldPos) < gg.radius) {
+                                        hitGoodGuy = true;
+                                        break;
+                                    }
+                                }
+
+                                if (hitGoodGuy) {
+                                    halfHearts = 0;
+                                    renderHeartsUI();
+                                    triggerPitchBlackState();
+                                    break;
+                                }
+
+                                const enemyWorldPos = new THREE.Vector3();
+                                t.userData.mainMesh.getWorldPosition(enemyWorldPos);
+
+                                if (tk.mesh.position.distanceTo(enemyWorldPos) < 1.1) {
+                                    tk.isStuck = true;
+                                    tk.stuckTarget = t;
+                                    stuckThisFrame = true;
+                                    triggerTargetHit(t);
+
+                                    const hitPoint = tk.mesh.position.clone();
+                                    t.userData.mainMesh.attach(tk.mesh);
+                                    tk.mesh.position.copy(t.userData.mainMesh.worldToLocal(hitPoint));
+                                    tk.mesh.scale.set(1.2, 1.2, 1.2).divide(t.userData.mainMesh.scale);
+
+                                    tk.mesh.rotation.set(0, 0, 0);
+                                    tk.mesh.rotateX(Math.PI / 2);
+                                    tk.mesh.translateZ(-0.4);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!stuckThisFrame && !isDead) {
+                            for (let obs of allObsForMovement) {
+                                const treePos = obs.mesh.position;
+                                const horizDist = Math.hypot(tk.mesh.position.x - treePos.x, tk.mesh.position.z - treePos.z);
+                                const hitTrunk = horizDist <= obs.radius + 0.25 && tk.mesh.position.y <= treePos.y + obs.trunkHeight + 0.3;
+                                const hitCrown = horizDist <= obs.radius * 3.1 && tk.mesh.position.y > treePos.y + obs.trunkHeight - 0.2 && tk.mesh.position.y <= treePos.y + obs.trunkHeight + 3.8;
+
+                                if (hitTrunk || hitCrown) {
+                                    tk.isStuck = true;
+                                    tk.hasLanded = true;
+                                    tk.velocity.set(0, 0, 0);
+                                    tk.spinSpeed = 0;
+                                    stuckThisFrame = true;
+
+                                    const hitPoint = tk.mesh.position.clone();
+                                    obs.mesh.attach(tk.mesh);
+                                    tk.mesh.position.copy(obs.mesh.worldToLocal(hitPoint));
+                                    tk.mesh.scale.set(1.2, 1.2, 1.2);
+                                    tk.mesh.lookAt(treePos.x, tk.mesh.position.y + treePos.y, treePos.z);
+                                    tk.mesh.rotateX(Math.PI / 2);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (isDead) break;
+
+                    const knifeGroundY = getTerrainHeight(tk.mesh.position.x, tk.mesh.position.z);
+                    if (!stuckThisFrame && tk.mesh.position.y <= knifeGroundY + 0.35) {
+                        tk.mesh.position.y = knifeGroundY + 0.35;
+                        tk.velocity.set(0, 0, 0);
+                        tk.spinSpeed = 0;
+                        tk.hasLanded = true;
+                        tk.mesh.scale.set(1.2, 1.2, 1.2);
+                        tk.mesh.rotation.set(Math.PI / 2, 0, 0);
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>

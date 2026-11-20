@@ -8,4 +8,7 @@ PropHunt II
 <img src="recording.gif" style="width: 500px;">  
 
 
-windows support soon 
+
+<img src="win.gif" style="width: 500px;">  
+
+
